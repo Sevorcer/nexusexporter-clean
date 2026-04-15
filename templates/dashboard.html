@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+    <h2>Dashboard for {{ user.username }}</h2>
+    <a href="/">Home</a> | <a href="/logout">Logout</a><br><br>
+    {% if league %}
+        <strong>League:</strong> {{ league }} <br>
+        <strong>API Key:</strong> {{ api_key }}
+    {% else %}
+        <form action="/create_league" method="post">
+            <input type="text" name="league_name" placeholder="Enter league name" required>
+            <input type="submit" value="Create League">
+        </form>
+    {% endif %}
+</body>
+</html>

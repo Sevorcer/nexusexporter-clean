@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home</title>
+</head>
+<body>
+    {% if user %}
+        <h2>Welcome, {{ user.username }}! <a href="/logout">[logout]</a></h2>
+        <a href="/dashboard">Go to your dashboard</a>
+    {% else %}
+        <h2>Welcome! <a href="/login">Login with Discord</a></h2>
+    {% endif %}
+</body>
+</html>
