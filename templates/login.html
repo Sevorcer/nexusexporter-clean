@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Login</title>
-</head>
+<head><title>Login</title></head>
 <body>
-    <h1>Login</h1>
-    <form method="post" action="/login">
-        <input type="text" name="username" placeholder="Your username" required>
-        <button type="submit">Login</button>
-    </form>
+    <h1>Login via Discord</h1>
+    {% if error %}
+      <p style="color: red;">{{ error }}</p>
+    {% endif %}
+    <a href="{{ discord_auth_url }}"><button>Login with Discord</button></a>
 </body>
 </html>

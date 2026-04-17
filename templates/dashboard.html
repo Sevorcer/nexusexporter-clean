@@ -2,18 +2,58 @@
 <html>
 <head>
     <title>Your Leagues</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em;}
+        .leagues-list { list-style-type: none; padding: 0; }
+        .leagues-list li { margin-bottom: 1.2em; border-bottom: 1px solid #eee; padding-bottom: 1em;}
+        .avatar { vertical-align: middle; border-radius: 50%; margin-left: 8px; }
+        .messages { margin-bottom: 1.2em; }
+        .error { color: red;}
+        .flash { color: green;}
+        .league-key { font-family: monospace; }
+        .copy-btn { margin-left: 10px;}
+        .logout { float: right;}
+    </style>
+    <script>
+        function copyApiKey(key, idx) {
+            navigator.clipboard.writeText(key);
+            const el = document.getElementById("copied-" + idx);
+            if (el) {
+                el.style.display = "inline";
+                setTimeout(() => { el.style.display = "none" }, 1200);
+            }
+        }
+    </script>
 </head>
 <body>
-    <h1>Dashboard</h1>
-    <p>Hello, {{ user.username }}! <a href="/logout">Logout</a></p>
+    <div>
+        <span>
+            Hello, <strong>{{ user.username }}</strong>!
+            {% if user.avatar %}
+                <img class="avatar" src="https://cdn.discordapp.com/avatars/{{ user.discord_id }}/{{ user.avatar }}.png" height="36" alt="avatar">
+            {% endif %}
+        </span>
+        <a href="/logout" class="logout">Logout</a>
+    </div>
+
+    <div class="messages">
+        {% if flash_msg %}
+            <div class="flash">{{ flash_msg }}</div>
+        {% endif %}
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+    </div>
+
     <h2>Your Leagues</h2>
     {% if leagues %}
-        <ul>
+        <ul class="leagues-list">
             {% for league in leagues %}
                 <li>
                     <strong>{{ league.name }}</strong><br>
-                    API Key: <code id="key-{{ loop.index }}">{{ league.api_key }}</code>
-                    <button onclick="copyApiKey('{{ league.api_key }}')">Copy</button>
+                    API Key: <span class="league-key" id="key-{{ loop.index }}">{{ league.api_key }}</span>
+                    <button class="copy-btn" onclick="copyApiKey('{{ league.api_key }}', {{ loop.index }})">Copy</button>
+                    <span id="copied-{{ loop.index }}" style="display:none;color:green;">(Copied!)</span>
                 </li>
             {% endfor %}
         </ul>
@@ -23,14 +63,8 @@
 
     <h3>Create New League</h3>
     <form method="post" action="/create_league">
-        <input type="text" name="league_name" placeholder="League name" required>
-        <button type="submit">Create League</button>
+        <input type="text" name="league_name" placeholder="League name" required style="padding:5px;"/>
+        <button type="submit" style="padding:5px 12px;">Create League</button>
     </form>
-    <script>
-        function copyApiKey(key) {
-            navigator.clipboard.writeText(key);
-            alert("Copied: " + key);
-        }
-    </script>
 </body>
 </html>
