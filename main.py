@@ -1,121 +1,98 @@
 import os
-import uuid
+import secrets
+from typing import List, Optional
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from sqlmodel import SQLModel, Field, Relationship, Session, select, create_engine
 from starlette.middleware.sessions import SessionMiddleware
 
-from dotenv import load_dotenv
-load_dotenv()
-
-from authlib.integrations.starlette_client import OAuth
-
-from sqlmodel import SQLModel, Field, create_engine, Session, select
-
-# Set up database
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(DATABASE_URL, echo=True)
-
-# Define the user model
-class User(SQLModel, table=True):
-    discord_id: str = Field(primary_key=True)
-    username: str
-    league: str | None = None
-    api_key: str | None = None
-
-# Build tables (safe to call multiple times)
-SQLModel.metadata.create_all(engine)
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///database.db")
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 
 app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 templates = Jinja2Templates(directory="templates")
 
-DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
-DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
-DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-def get_current_user(request: Request):
-    return request.session.get("user")
+# --- MODELS ----
 
-oauth = OAuth()
-oauth.register(
-    name="discord",
-    client_id=DISCORD_CLIENT_ID,
-    client_secret=DISCORD_CLIENT_SECRET,
-    access_token_url="https://discord.com/api/oauth2/token",
-    access_token_params=None,
-    authorize_url="https://discord.com/api/oauth2/authorize",
-    authorize_params=None,
-    api_base_url="https://discord.com/api/",
-    client_kwargs={"scope": "identify email"},
-)
+class League(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    api_key: str
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str
+    leagues: List["League"] = Relationship(back_populates="user")
+
+League.user = Relationship(back_populates="leagues")
+
+# --- DATABASE INIT ----
+def create_db():
+    SQLModel.metadata.create_all(engine)
+create_db()
+
+# --- DEPENDENCIES ----
+def get_session():
+    with Session(engine) as session:
+        yield session
+
+def get_current_user(request: Request, session: Session = Depends(get_session)) -> User:
+    username = request.session.get("username")
+    if not username:
+        # Not logged in
+        raise RedirectResponse("/login", status_code=303)
+    user = session.exec(select(User).where(User.username == username)).first()
+    if not user:
+        user = User(username=username)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+    return user
+
+# ROUTES
 
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    user = get_current_user(request)
-    return templates.TemplateResponse("home.html", {"request": request, "user": user})
+def dashboard(request: Request, session: Session = Depends(get_session)):
+    username = request.session.get("username")
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+    user = session.exec(select(User).where(User.username == username)).first()
+    leagues = []
+    if user:
+        leagues = session.exec(select(League).where(League.user_id == user.id)).all()
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": user, "leagues": leagues})
 
-@app.get("/login")
-async def login(request: Request):
-    redirect_uri = DISCORD_REDIRECT_URI
-    return await oauth.discord.authorize_redirect(request, redirect_uri)
+@app.get("/login", response_class=HTMLResponse)
+def login_get(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
 
-@app.get("/callback")
-async def callback(request: Request):
-    token = await oauth.discord.authorize_access_token(request)
-    # Fetch user info directly
-    resp = await oauth.discord.get("users/@me", token=token)
-    profile = resp.json()
-    discord_id = profile["id"]
-    username = f'{profile["username"]}#{profile["discriminator"]}'
-    user = {
-        "discord_id": discord_id,
-        "username": username
-    }
-    request.session["user"] = user
-    with Session(engine) as session:
-        db_user = session.get(User, discord_id)
-        if not db_user:
-            db_user = User(discord_id=discord_id, username=username)
-            session.add(db_user)
-            session.commit()
-    return RedirectResponse("/dashboard", status_code=303)
-
-@app.get("/dashboard", response_class=HTMLResponse)
-def dashboard(request: Request):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse("/", status_code=303)
-    discord_id = user["discord_id"]
-    with Session(engine) as session:
-        db_user = session.get(User, discord_id)
-        if not db_user:
-            # Optional: create user entry if missing (rare)
-            db_user = User(discord_id=discord_id, username=user["username"])
-            session.add(db_user)
-            session.commit()
-        league = db_user.league
-        api_key = db_user.api_key
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request, "user": user, "league": league, "api_key": api_key
-    })
-
-@app.post("/create_league")
-def create_league(request: Request, league_name: str = Form(...)):
-    user = get_current_user(request)
-    if not user:
-        return RedirectResponse("/", status_code=303)
-    with Session(engine) as session:
-        db_user = session.get(User, user["discord_id"])
-        if db_user:
-            db_user.league = league_name
-            db_user.api_key = str(uuid.uuid4())
-            session.add(db_user)
-            session.commit()
-    return RedirectResponse("/dashboard", status_code=303)
+@app.post("/login")
+def login_post(request: Request, username: str = Form(...)):
+    request.session["username"] = username
+    return RedirectResponse("/", status_code=303)
 
 @app.get("/logout")
 def logout(request: Request):
-    request.session.pop("user", None)
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+@app.post("/create_league")
+def create_league(
+    request: Request,
+    league_name: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    api_key = secrets.token_hex(16)
+    league = League(name=league_name, api_key=api_key, user_id=user.id)
+    session.add(league)
+    session.commit()
     return RedirectResponse("/", status_code=303)

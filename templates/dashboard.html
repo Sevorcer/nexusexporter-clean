@@ -1,19 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dashboard</title>
+    <title>Your Leagues</title>
 </head>
 <body>
-    <h2>Dashboard for {{ user.username }}</h2>
-    <a href="/">Home</a> | <a href="/logout">Logout</a><br><br>
-    {% if league %}
-        <strong>League:</strong> {{ league }} <br>
-        <strong>API Key:</strong> {{ api_key }}
+    <h1>Dashboard</h1>
+    <p>Hello, {{ user.username }}! <a href="/logout">Logout</a></p>
+    <h2>Your Leagues</h2>
+    {% if leagues %}
+        <ul>
+            {% for league in leagues %}
+                <li>
+                    <strong>{{ league.name }}</strong><br>
+                    API Key: <code id="key-{{ loop.index }}">{{ league.api_key }}</code>
+                    <button onclick="copyApiKey('{{ league.api_key }}')">Copy</button>
+                </li>
+            {% endfor %}
+        </ul>
     {% else %}
-        <form action="/create_league" method="post">
-            <input type="text" name="league_name" placeholder="Enter league name" required>
-            <input type="submit" value="Create League">
-        </form>
+        <p>No leagues yet. Create one below!</p>
     {% endif %}
+
+    <h3>Create New League</h3>
+    <form method="post" action="/create_league">
+        <input type="text" name="league_name" placeholder="League name" required>
+        <button type="submit">Create League</button>
+    </form>
+    <script>
+        function copyApiKey(key) {
+            navigator.clipboard.writeText(key);
+            alert("Copied: " + key);
+        }
+    </script>
 </body>
 </html>
