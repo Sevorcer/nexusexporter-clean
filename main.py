@@ -24,6 +24,10 @@ engine = create_engine(
 
 # ----------- FastAPI app & Templates -----------
 app = FastAPI()
+@app.get("/force_create_tables")
+def force_create_tables():
+    SQLModel.metadata.create_all(engine)
+    return {"status": "tables created"}
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
