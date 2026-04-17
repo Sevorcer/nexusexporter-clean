@@ -8,3 +8,4 @@ itsdangerous
 httpx
 python-dotenv
 sqlmodel
+psycopg2-binary
