@@ -201,11 +201,12 @@ def validate_api_key(league_id: int, key: str, session: Session) -> League:
     return league
 
 def clear_league_records(session: Session, model: Type[SQLModel], league_id: int) -> int:
+    """Bulk delete rows for models that include a `league_id` column."""
     result = session.exec(delete(model).where(model.league_id == league_id))
     return result.rowcount or 0
 
-def clear_team_related_records(session: Session, league_id: int) -> int:
-    """Delete dependent league rows before Team rows to satisfy FK constraints."""
+def clear_teams_and_dependencies(session: Session, league_id: int) -> int:
+    """Delete team-dependent rows in FK-safe order and return only Team rows deleted."""
     cleared_team_records = 0
     models_in_fk_safe_order: List[Type[SQLModel]] = [PlayerStats, Standing, Schedule, Player, Team]
     for model in models_in_fk_safe_order:
@@ -323,7 +324,7 @@ def ingest_teams(
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
-    cleared = clear_team_related_records(session, league_id)
+    cleared = clear_teams_and_dependencies(session, league_id)
     for team_data in teams:
         payload = team_data.model_dump(exclude_unset=True)
         session.add(Team(league_id=league_id, **payload))
