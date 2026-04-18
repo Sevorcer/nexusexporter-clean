@@ -254,6 +254,209 @@ class ApiIngestTests(unittest.TestCase):
                 1,
             )
 
+    def test_companion_routes_transform_madden_payloads_and_merge_weekly_stats(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+
+        standings_response = self.client.post(
+            "/xbsx/22006264/standings",
+            json={
+                "content": {
+                    "teamStandingInfoList": [
+                        {
+                            "teamId": 10,
+                            "teamName": "Lions",
+                            "conferenceName": "NFC",
+                            "divisionName": "NFC North",
+                            "teamOvr": 84,
+                            "totalWins": 9,
+                            "totalLosses": 2,
+                            "totalTies": 1,
+                            "seed": 1,
+                        }
+                    ]
+                }
+            },
+        )
+        self.assertEqual(standings_response.status_code, 200)
+        self.assertEqual(standings_response.json()["inserted"], 1)
+
+        roster_response = self.client.post(
+            "/xbsx/22006264/freeagents/roster",
+            json={
+                "content": {
+                    "rosterInfoList": [
+                        {
+                            "rosterId": 100,
+                            "teamId": 10,
+                            "firstName": "Jared",
+                            "lastName": "Goff",
+                            "position": "QB",
+                            "age": 30,
+                            "playerSchemeOvr": 85,
+                            "jerseyNum": 16,
+                            "contractSalary": 45000000,
+                            "contractYearsLeft": 2,
+                            "devTraitLabel": "Star",
+                            "signatureSlotList": ["set-feet-lead"],
+                        }
+                    ]
+                }
+            },
+        )
+        self.assertEqual(roster_response.status_code, 200)
+        self.assertEqual(roster_response.json()["inserted"], 1)
+
+        schedule_response = self.client.post(
+            "/xbsx/22006264/week/reg/1/team",
+            json={
+                "content": {
+                    "gameScheduleInfoList": [
+                        {
+                            "scheduleId": 700,
+                            "seasonIndex": 1,
+                            "stageIndex": 1,
+                            "weekIndex": 1,
+                            "awayTeamId": 20,
+                            "homeTeamId": 10,
+                            "awayScore": 17,
+                            "homeScore": 24,
+                            "status": "Final",
+                            "isGameOfTheWeek": True,
+                        }
+                    ]
+                }
+            },
+        )
+        self.assertEqual(schedule_response.status_code, 200)
+        self.assertEqual(schedule_response.json()["inserted"], 1)
+
+        passing_response = self.client.post(
+            "/xbsx/22006264/week/reg/1/passing",
+            json={
+                "content": {
+                    "playerPassingStatInfoList": [
+                        {
+                            "statId": 9001,
+                            "rosterId": 100,
+                            "teamId": 10,
+                            "scheduleId": 700,
+                            "seasonIndex": 1,
+                            "stageIndex": 1,
+                            "weekIndex": 1,
+                            "fullName": "Jared Goff",
+                            "passAtt": 30,
+                            "passComp": 22,
+                            "passInts": 1,
+                            "passTDs": 2,
+                            "passYds": 312,
+                        }
+                    ]
+                }
+            },
+        )
+        self.assertEqual(passing_response.status_code, 200)
+        self.assertEqual(passing_response.json()["inserted"], 1)
+
+        rushing_response = self.client.post(
+            "/xbsx/22006264/week/reg/1/rushing",
+            json={
+                "content": {
+                    "playerRushingStatInfoList": [
+                        {
+                            "statId": 9002,
+                            "rosterId": 100,
+                            "teamId": 10,
+                            "scheduleId": 700,
+                            "seasonIndex": 1,
+                            "stageIndex": 1,
+                            "weekIndex": 1,
+                            "fullName": "Jared Goff",
+                            "rushAtt": 3,
+                            "rushTDs": 1,
+                            "rushYds": 16,
+                        }
+                    ]
+                }
+            },
+        )
+        self.assertEqual(rushing_response.status_code, 200)
+        self.assertEqual(rushing_response.json()["updated"], 1)
+
+        defense_response = self.client.post(
+            "/xbsx/22006264/week/reg/1/defense",
+            json={
+                "content": {
+                    "playerDefensiveStatInfoList": [
+                        {
+                            "statId": 9003,
+                            "rosterId": 100,
+                            "teamId": 10,
+                            "scheduleId": 700,
+                            "seasonIndex": 1,
+                            "stageIndex": 1,
+                            "weekIndex": 1,
+                            "fullName": "Jared Goff",
+                            "defSacks": 1,
+                            "defInts": 2,
+                            "defTotalTackles": 5,
+                            "tacklesForLoss": 1,
+                        }
+                    ]
+                }
+            },
+        )
+        self.assertEqual(defense_response.status_code, 200)
+        self.assertEqual(defense_response.json()["updated"], 1)
+
+        with Session(main.engine) as session:
+            team = session.get(main.Team, 10)
+            self.assertIsNotNone(team)
+            self.assertEqual(team.team_name, "Lions")
+            self.assertEqual(team.division, "NFC North")
+            self.assertEqual(team.overall_rating, 84)
+            self.assertEqual(team.wins, 9)
+
+            players = session.exec(select(main.Player).where(main.Player.league_id == 1)).all()
+            self.assertEqual(len(players), 1)
+            self.assertEqual(players[0].overall_rating, 85)
+            self.assertEqual(players[0].dev_trait, "Star")
+
+            schedules = session.exec(select(main.Schedule).where(main.Schedule.league_id == 1)).all()
+            self.assertEqual(len(schedules), 1)
+            self.assertTrue(schedules[0].is_complete)
+
+            stats = session.exec(select(main.PlayerStats).where(main.PlayerStats.league_id == 1)).all()
+            self.assertEqual(len(stats), 1)
+            self.assertEqual(stats[0].pass_yards, 312)
+            self.assertEqual(stats[0].pass_tds, 2)
+            self.assertEqual(stats[0].interceptions, 1)
+            self.assertEqual(stats[0].rush_yards, 16)
+            self.assertEqual(stats[0].rush_tds, 1)
+            self.assertEqual(stats[0].sacks, 1)
+            self.assertEqual(stats[0].defensive_ints, 2)
+            self.assertEqual(stats[0].tackles, 5)
+
+    def test_companion_payload_type_detection_prefers_content_keys_over_url(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        response = self.client.post(
+            "/xbsx/22006264/standings",
+            json={
+                "content": {
+                    "playerPassingStatInfoList": [
+                        {"rosterId": 100, "seasonIndex": 1, "weekIndex": 1, "passYds": 250}
+                    ]
+                }
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["inserted"], 1)
+
+        with Session(main.engine) as session:
+            standings = session.exec(select(main.Standing).where(main.Standing.league_id == 1)).all()
+            stats = session.exec(select(main.PlayerStats).where(main.PlayerStats.league_id == 1)).all()
+            self.assertEqual(len(standings), 0)
+            self.assertEqual(len(stats), 1)
+
     def test_companion_double_slash_route_is_accepted(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
         response = self.client.post(
