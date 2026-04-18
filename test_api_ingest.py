@@ -32,9 +32,15 @@ class ApiIngestTests(unittest.TestCase):
                     session.delete(row)
             session.commit()
 
-    def create_league(self, league_id: int = 1, api_key: str = "valid-key"):
+    def create_league(self, league_id: int = 1, api_key: str = "valid-key", madden_league_id: str | None = None):
         with Session(main.engine) as session:
-            league = main.League(id=league_id, name="Test League", api_key=api_key, user_id=None)
+            league = main.League(
+                id=league_id,
+                name="Test League",
+                api_key=api_key,
+                madden_league_id=madden_league_id,
+                user_id=None,
+            )
             session.add(league)
             session.commit()
 
@@ -187,6 +193,75 @@ class ApiIngestTests(unittest.TestCase):
         standings = response.json()
         self.assertEqual(standings[0]["team_id"], 20)
         self.assertEqual(standings[1]["team_id"], 10)
+
+    def test_companion_routes_map_to_existing_ingest_logic(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+
+        teams_response = self.client.post(
+            "/xbsx/22006264/teams",
+            json=[{"id": 10, "team_name": "Lions"}],
+        )
+        self.assertEqual(teams_response.status_code, 200)
+        self.assertEqual(teams_response.json()["inserted"], 1)
+
+        roster_response = self.client.post(
+            "/xbsx/22006264/freeagents/roster",
+            json=[{"id": 100, "team_id": 10, "first_name": "A", "last_name": "B", "position": "QB"}],
+        )
+        self.assertEqual(roster_response.status_code, 200)
+        self.assertEqual(roster_response.json()["inserted"], 1)
+
+        standings_response = self.client.post(
+            "/xbsx/22006264/standings",
+            json=[{"team_id": 10, "wins": 10, "losses": 2, "ties": 0}],
+        )
+        self.assertEqual(standings_response.status_code, 200)
+        self.assertEqual(standings_response.json()["inserted"], 1)
+
+        schedules_response = self.client.post(
+            "/xbsx/22006264/schedules",
+            json=[{"week_number": 1, "season_number": 1, "home_team_id": 10, "away_team_id": 10}],
+        )
+        self.assertEqual(schedules_response.status_code, 200)
+        self.assertEqual(schedules_response.json()["inserted"], 1)
+
+        stats_response = self.client.post(
+            "/xbsx/22006264/week/reg/1/defense",
+            json=[{"player_id": 100, "week_number": 1, "season_number": 1, "sacks": 2}],
+        )
+        self.assertEqual(stats_response.status_code, 200)
+        self.assertEqual(stats_response.json()["inserted"], 1)
+
+        with Session(main.engine) as session:
+            self.assertEqual(
+                len(session.exec(select(main.Team).where(main.Team.league_id == 1)).all()),
+                1,
+            )
+            self.assertEqual(
+                len(session.exec(select(main.Player).where(main.Player.league_id == 1)).all()),
+                1,
+            )
+            self.assertEqual(
+                len(session.exec(select(main.Standing).where(main.Standing.league_id == 1)).all()),
+                1,
+            )
+            self.assertEqual(
+                len(session.exec(select(main.Schedule).where(main.Schedule.league_id == 1)).all()),
+                1,
+            )
+            self.assertEqual(
+                len(session.exec(select(main.PlayerStats).where(main.PlayerStats.league_id == 1)).all()),
+                1,
+            )
+
+    def test_companion_double_slash_route_is_accepted(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        response = self.client.post(
+            "http://testserver//xbsx/22006264/standings",
+            json=[{"team_id": 10, "wins": 9, "losses": 3, "ties": 0}],
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["inserted"], 1)
 
 
 if __name__ == "__main__":

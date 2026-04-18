@@ -46,6 +46,7 @@ class League(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     api_key: str
+    madden_league_id: Optional[str] = Field(default=None, index=True)
     user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     user: Optional[User] = Relationship(back_populates="leagues")
 
@@ -222,6 +223,54 @@ def get_league_or_404(league_id: int, session: Session) -> League:
     if league is None:
         raise HTTPException(status_code=404, detail="League not found")
     return league
+
+
+def get_league_by_madden_id_or_404(madden_league_id: str, session: Session) -> League:
+    league = session.exec(select(League).where(League.madden_league_id == madden_league_id)).first()
+    if league is not None:
+        return league
+    if madden_league_id.isdigit():
+        league = session.get(League, int(madden_league_id))
+        if league is not None:
+            return league
+    raise HTTPException(status_code=404, detail="League not found")
+
+
+def ingest_companion_payload(
+    platform: str,
+    madden_league_id: str,
+    companion_path: str,
+    payload: List[Dict[str, Any]],
+    session: Session,
+):
+    supported_platforms = {"xbsx", "xone", "ps5", "ps4", "pc"}
+    if platform not in supported_platforms:
+        raise HTTPException(status_code=404, detail="Companion platform not supported")
+
+    league = get_league_by_madden_id_or_404(madden_league_id, session)
+    normalized_path = companion_path.strip("/")
+
+    if normalized_path == "teams":
+        teams = [TeamIn.model_validate(row) for row in payload]
+        return ingest_teams(league.id, league.api_key, teams, session)
+    if normalized_path == "standings":
+        standings = [StandingIn.model_validate(row) for row in payload]
+        return ingest_standings(league.id, league.api_key, standings, session)
+    if normalized_path in {"schedules", "schedule"}:
+        schedules = [ScheduleIn.model_validate(row) for row in payload]
+        return ingest_schedules(league.id, league.api_key, schedules, session)
+    if normalized_path == "freeagents/roster" or (
+        normalized_path.startswith("team/") and normalized_path.endswith("/roster")
+    ):
+        players = [PlayerIn.model_validate(row) for row in payload]
+        return ingest_rosters(league.id, league.api_key, players, session)
+
+    segments = normalized_path.split("/")
+    if len(segments) == 4 and segments[0] == "week":
+        stats = [PlayerStatsIn.model_validate(row) for row in payload]
+        return ingest_stats(league.id, league.api_key, stats, session)
+
+    raise HTTPException(status_code=404, detail="Companion endpoint not supported")
 
 
 def build_stat_leaders(
@@ -480,6 +529,28 @@ def ingest_stats(
         session.add(PlayerStats(league_id=league_id, **payload))
     session.commit()
     return {"success": True, "cleared": cleared, "inserted": len(stats)}
+
+
+@app.post("/{platform}/{madden_league_id}/{companion_path:path}")
+def ingest_madden_companion(
+    platform: str,
+    madden_league_id: str,
+    companion_path: str,
+    payload: List[Dict[str, Any]] = Body(...),
+    session: Session = Depends(get_session),
+):
+    return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
+
+
+@app.post("//{platform}/{madden_league_id}/{companion_path:path}")
+def ingest_madden_companion_double_slash(
+    platform: str,
+    madden_league_id: str,
+    companion_path: str,
+    payload: List[Dict[str, Any]] = Body(...),
+    session: Session = Depends(get_session),
+):
+    return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
 
 
 @app.get("/api/{league_id}/teams")
