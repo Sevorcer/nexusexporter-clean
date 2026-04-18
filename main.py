@@ -200,13 +200,14 @@ def validate_api_key(league_id: int, key: str, session: Session) -> League:
         raise HTTPException(status_code=403, detail="Invalid API key")
     return league
 
-def clear_league_records(session: Session, model: Any, league_id: int) -> int:
+def clear_league_records(session: Session, model: Type[SQLModel], league_id: int) -> int:
     records = session.exec(select(model).where(model.league_id == league_id)).all()
     for record in records:
         session.delete(record)
     return len(records)
 
 def clear_team_related_records(session: Session, league_id: int) -> int:
+    """Delete dependent league rows before Team rows to satisfy FK constraints."""
     cleared_team_records = 0
     models_in_fk_safe_order: List[Type[SQLModel]] = [PlayerStats, Standing, Schedule, Player, Team]
     for model in models_in_fk_safe_order:
