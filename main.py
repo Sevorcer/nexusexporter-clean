@@ -405,7 +405,7 @@ def _upsert_teams_from_standings(league_id: int, teams: List[TeamIn], session: S
     return upserted
 
 
-def ingest_companion_stats(league_id: int, stats: List[PlayerStatsIn], session: Session):
+def ingest_companion_stats(league_id: int, stats: List[PlayerStatsIn], session: Session) -> Dict[str, Any]:
     inserted = 0
     updated = 0
     for stat_data in stats:
