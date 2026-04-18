@@ -496,11 +496,10 @@ def ingest_companion_payload(
     if payload_type in {"passing", "rushing", "defense"}:
         stats = _transform_madden_stats(rows, payload_type)
         return ingest_companion_stats(league.id, stats, session)
-    is_leagueteams_path = normalized_path == "leagueteams"
     if payload_type == "teams" or normalized_path in {"teams", "leagueteams"}:
         teams = (
             _transform_madden_teams(rows)
-            if payload_type == "teams" or is_leagueteams_path
+            if payload_type == "teams" or normalized_path == "leagueteams"
             else [TeamIn.model_validate(row) for row in rows]
         )
         return ingest_teams(league.id, league.api_key, teams, session)
@@ -835,13 +834,18 @@ async def ingest_madden_companion(
             payload = json.loads(raw_body)
             return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
         except json.JSONDecodeError:
-            parsed_query = parse_qs(raw_body.decode("utf-8", errors="replace"), keep_blank_values=True)
+            try:
+                parsed_query = parse_qs(raw_body.decode("utf-8"), keep_blank_values=True)
+            except UnicodeDecodeError:
+                parsed_query = {}
             if parsed_query:
                 form_data: Dict[str, Any] = {}
                 for key, values in parsed_query.items():
-                    form_data[key] = values if len(values) > 1 else values[0]
+                    form_data[key] = values
                 for candidate_key in COMPANION_JSON_FORM_KEYS:
                     candidate = form_data.get(candidate_key)
+                    if isinstance(candidate, list) and len(candidate) == 1:
+                        candidate = candidate[0]
                     if isinstance(candidate, str):
                         try:
                             payload = json.loads(candidate)
