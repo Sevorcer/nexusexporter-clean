@@ -13,6 +13,7 @@
         .league-key { font-family: monospace; }
         .copy-btn { margin-left: 10px;}
         .logout { float: right;}
+        .madden-id-form { margin-top: 8px; }
     </style>
     <script>
         function copyApiKey(key, idx) {
@@ -55,6 +56,17 @@
                     API Key: <span class="league-key" id="key-{{ loop.index }}">{{ league.api_key }}</span>
                     <button class="copy-btn" onclick="copyApiKey('{{ league.api_key }}', {{ loop.index }})">Copy</button>
                     <span id="copied-{{ loop.index }}" style="display:none;color:green;">(Copied!)</span>
+                    <form method="post" action="/set_madden_id" class="madden-id-form">
+                        <input type="hidden" name="league_id" value="{{ league.id }}" />
+                        <label for="madden-id-{{ league.id }}">Madden League ID:</label>
+                        <input
+                            id="madden-id-{{ league.id }}"
+                            type="text"
+                            name="madden_league_id"
+                            value="{{ league.madden_league_id or '' }}"
+                        />
+                        <button type="submit">Save</button>
+                    </form>
                 </li>
             {% endfor %}
         </ul>

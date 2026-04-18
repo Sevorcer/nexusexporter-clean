@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -32,17 +33,33 @@ class ApiIngestTests(unittest.TestCase):
                     session.delete(row)
             session.commit()
 
-    def create_league(self, league_id: int = 1, api_key: str = "valid-key", madden_league_id: str | None = None):
+    def create_user(self, discord_id: str, username: str) -> int:
+        with Session(main.engine) as session:
+            user = main.User(discord_id=discord_id, username=username)
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            return user.id
+
+    def create_league(
+        self,
+        league_id: int = 1,
+        api_key: str = "valid-key",
+        madden_league_id: str | None = None,
+        user_id: int | None = None,
+    ):
         with Session(main.engine) as session:
             league = main.League(
                 id=league_id,
                 name="Test League",
                 api_key=api_key,
                 madden_league_id=madden_league_id,
-                user_id=None,
+                user_id=user_id,
             )
             session.add(league)
             session.commit()
+            session.refresh(league)
+            return league.id
 
     def seed_sample_league_data(self):
         self.create_league(api_key="sample-key")
@@ -465,6 +482,120 @@ class ApiIngestTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["inserted"], 1)
+
+    def test_set_madden_id_updates_owned_league(self):
+        user_id = self.create_user("owner-1", "owner")
+        league_id = self.create_league(user_id=user_id)
+        with patch(
+            "main.get_current_user",
+            return_value=main.User(id=user_id, discord_id="owner-1", username="owner"),
+        ):
+            response = self.client.post(
+                "/set_madden_id",
+                data={"league_id": str(league_id), "madden_league_id": "22006264"},
+                follow_redirects=False,
+            )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        with Session(main.engine) as session:
+            league = session.get(main.League, league_id)
+            self.assertIsNotNone(league)
+            self.assertEqual(league.madden_league_id, "22006264")
+
+    def test_set_madden_id_rejects_non_owner(self):
+        owner_id = self.create_user("owner-2", "owner")
+        other_id = self.create_user("other-2", "other")
+        league_id = self.create_league(user_id=owner_id)
+        with patch(
+            "main.get_current_user",
+            return_value=main.User(id=other_id, discord_id="other-2", username="other"),
+        ):
+            response = self.client.post(
+                "/set_madden_id",
+                data={"league_id": str(league_id), "madden_league_id": "22006264"},
+                follow_redirects=False,
+            )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        with Session(main.engine) as session:
+            league = session.get(main.League, league_id)
+            self.assertIsNotNone(league)
+            self.assertIsNone(league.madden_league_id)
+
+    def test_set_madden_id_allows_clearing_value(self):
+        user_id = self.create_user("owner-3", "owner")
+        league_id = self.create_league(user_id=user_id, madden_league_id="22006264")
+        with patch(
+            "main.get_current_user",
+            return_value=main.User(id=user_id, discord_id="owner-3", username="owner"),
+        ):
+            response = self.client.post(
+                "/set_madden_id",
+                data={"league_id": str(league_id), "madden_league_id": "   "},
+                follow_redirects=False,
+            )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        with Session(main.engine) as session:
+            league = session.get(main.League, league_id)
+            self.assertIsNotNone(league)
+            self.assertIsNone(league.madden_league_id)
+
+    def test_set_madden_id_allows_clearing_with_empty_string(self):
+        user_id = self.create_user("owner-4", "owner")
+        league_id = self.create_league(user_id=user_id, madden_league_id="22006264")
+        with patch(
+            "main.get_current_user",
+            return_value=main.User(id=user_id, discord_id="owner-4", username="owner"),
+        ):
+            response = self.client.post(
+                "/set_madden_id",
+                data={"league_id": str(league_id), "madden_league_id": ""},
+                follow_redirects=False,
+            )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        with Session(main.engine) as session:
+            league = session.get(main.League, league_id)
+            self.assertIsNotNone(league)
+            self.assertIsNone(league.madden_league_id)
+
+    def test_set_madden_id_rejects_over_length_value(self):
+        user_id = self.create_user("owner-5", "owner")
+        league_id = self.create_league(user_id=user_id, madden_league_id="22006264")
+        too_long_madden_id = "1" * (main.MAX_MADDEN_LEAGUE_ID_LENGTH + 1)
+        with patch(
+            "main.get_current_user",
+            return_value=main.User(id=user_id, discord_id="owner-5", username="owner"),
+        ):
+            response = self.client.post(
+                "/set_madden_id",
+                data={"league_id": str(league_id), "madden_league_id": too_long_madden_id},
+                follow_redirects=False,
+            )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        with Session(main.engine) as session:
+            league = session.get(main.League, league_id)
+            self.assertIsNotNone(league)
+            self.assertEqual(league.madden_league_id, "22006264")
+
+    def test_league_detail_page_shows_madden_league_id(self):
+        league_id = self.create_league(madden_league_id="22006264")
+        response = self.client.get(f"/league/{league_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Madden League ID: 22006264", response.text)
+
+    def test_league_detail_page_shows_not_set_when_missing_madden_league_id(self):
+        league_id = self.create_league()
+        response = self.client.get(f"/league/{league_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Madden League ID: Not set", response.text)
 
 
 if __name__ == "__main__":
