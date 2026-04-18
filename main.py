@@ -531,19 +531,9 @@ def ingest_stats(
     return {"success": True, "cleared": cleared, "inserted": len(stats)}
 
 
+@app.post("//{platform}/{madden_league_id}/{companion_path:path}")
 @app.post("/{platform}/{madden_league_id}/{companion_path:path}")
 def ingest_madden_companion(
-    platform: str,
-    madden_league_id: str,
-    companion_path: str,
-    payload: List[Dict[str, Any]] = Body(...),
-    session: Session = Depends(get_session),
-):
-    return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
-
-
-@app.post("//{platform}/{madden_league_id}/{companion_path:path}")
-def ingest_madden_companion_double_slash(
     platform: str,
     madden_league_id: str,
     companion_path: str,
