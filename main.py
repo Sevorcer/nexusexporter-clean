@@ -19,6 +19,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "very-secret-dev-key")
 DISCORD_CLIENT_ID = os.environ["DISCORD_CLIENT_ID"]
 DISCORD_CLIENT_SECRET = os.environ["DISCORD_CLIENT_SECRET"]
 DISCORD_REDIRECT_URI = os.environ["DISCORD_REDIRECT_URI"]
+MAX_MADDEN_LEAGUE_ID_LENGTH = 64
 
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
@@ -669,7 +670,7 @@ def create_league(
 def set_madden_id(
     request: Request,
     league_id: int = Form(...),
-    madden_league_id: str = Form(...),
+    madden_league_id: Optional[str] = Form(default=""),
     session: Session = Depends(get_session),
 ):
     user = get_current_user(request, session)
@@ -685,7 +686,12 @@ def set_madden_id(
         request.session["flash_error"] = "You can only update your own leagues."
         return RedirectResponse("/", status_code=303)
 
-    league.madden_league_id = madden_league_id.strip() or None
+    cleaned_madden_id = (madden_league_id or "").strip()
+    if len(cleaned_madden_id) > MAX_MADDEN_LEAGUE_ID_LENGTH:
+        request.session["flash_error"] = f"Madden league ID must be {MAX_MADDEN_LEAGUE_ID_LENGTH} characters or less."
+        return RedirectResponse("/", status_code=303)
+
+    league.madden_league_id = cleaned_madden_id or None
     session.add(league)
     session.commit()
     request.session["flash_msg"] = f"Madden league ID saved for '{league.name}'."
