@@ -20,6 +20,7 @@ DISCORD_CLIENT_ID = os.environ["DISCORD_CLIENT_ID"]
 DISCORD_CLIENT_SECRET = os.environ["DISCORD_CLIENT_SECRET"]
 DISCORD_REDIRECT_URI = os.environ["DISCORD_REDIRECT_URI"]
 MAX_MADDEN_LEAGUE_ID_LENGTH = 64
+COMPANION_JSON_FORM_KEYS = ("payload", "data", "body", "json")
 
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
@@ -495,10 +496,11 @@ def ingest_companion_payload(
     if payload_type in {"passing", "rushing", "defense"}:
         stats = _transform_madden_stats(rows, payload_type)
         return ingest_companion_stats(league.id, stats, session)
+    is_leagueteams_path = normalized_path == "leagueteams"
     if payload_type == "teams" or normalized_path in {"teams", "leagueteams"}:
         teams = (
             _transform_madden_teams(rows)
-            if payload_type == "teams" or normalized_path == "leagueteams"
+            if payload_type == "teams" or is_leagueteams_path
             else [TeamIn.model_validate(row) for row in rows]
         )
         return ingest_teams(league.id, league.api_key, teams, session)
@@ -833,12 +835,12 @@ async def ingest_madden_companion(
             payload = json.loads(raw_body)
             return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
         except json.JSONDecodeError:
-            parsed_query = parse_qs(raw_body.decode("utf-8", errors="ignore"), keep_blank_values=True)
+            parsed_query = parse_qs(raw_body.decode("utf-8", errors="replace"), keep_blank_values=True)
             if parsed_query:
                 form_data: Dict[str, Any] = {}
                 for key, values in parsed_query.items():
                     form_data[key] = values if len(values) > 1 else values[0]
-                for candidate_key in ("payload", "data", "body", "json"):
+                for candidate_key in COMPANION_JSON_FORM_KEYS:
                     candidate = form_data.get(candidate_key)
                     if isinstance(candidate, str):
                         try:
@@ -859,7 +861,7 @@ async def ingest_madden_companion(
                 existing.append(value)
             else:
                 normalized_form[key] = [existing, value]
-        for candidate_key in ("payload", "data", "body", "json"):
+        for candidate_key in COMPANION_JSON_FORM_KEYS:
             candidate = normalized_form.get(candidate_key)
             if isinstance(candidate, str):
                 try:
