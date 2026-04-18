@@ -1,4 +1,5 @@
 import os
+import json
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -482,6 +483,65 @@ class ApiIngestTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["inserted"], 1)
+
+    def test_companion_route_accepts_json_body_with_non_json_content_type(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        payload = {"content": {"teamStandingInfoList": [{"teamId": 10, "totalWins": 9, "totalLosses": 3, "totalTies": 0}]}}
+        response = self.client.post(
+            "/xbsx/22006264/standings",
+            content=json.dumps(payload),
+            headers={"Content-Type": "text/plain"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["inserted"], 1)
+
+    def test_companion_route_accepts_form_encoded_payload_field(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        form_payload = {"content": {"teamStandingInfoList": [{"teamId": 10, "totalWins": 8, "totalLosses": 4, "totalTies": 0}]}}
+        response = self.client.post(
+            "/xbsx/22006264/standings",
+            data={"payload": json.dumps(form_payload)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["inserted"], 1)
+
+    def test_companion_leagueteams_transforms_and_ingests_teams(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        response = self.client.post(
+            "/xbsx/22006264/leagueteams",
+            json={
+                "content": {
+                    "leagueTeamInfoList": [
+                        {
+                            "teamId": 10,
+                            "teamName": "Lions",
+                            "divisionName": "NFC North",
+                            "teamOvr": 84,
+                            "totalWins": 9,
+                            "totalLosses": 2,
+                            "totalTies": 1,
+                        }
+                    ]
+                }
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["inserted"], 1)
+        with Session(main.engine) as session:
+            team = session.get(main.Team, 10)
+            self.assertIsNotNone(team)
+            self.assertEqual(team.team_name, "Lions")
+            self.assertEqual(team.overall_rating, 84)
+
+    def test_companion_untracked_weekly_stat_types_acknowledge_success(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        response = self.client.post(
+            "/xbsx/22006264/week/reg/3/kicking",
+            json=[{"some": "stat"}],
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["success"])
+        self.assertFalse(response.json()["tracked"])
 
     def test_set_madden_id_updates_owned_league(self):
         user_id = self.create_user("owner-1", "owner")
