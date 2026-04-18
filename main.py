@@ -275,7 +275,7 @@ def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings",
                 ("playerPassingStatInfoList", "passing"),
                 ("playerRushingStatInfoList", "rushing"),
                 ("playerDefensiveStatInfoList", "defense"),
-                # Companion payloads have been seen with both singular/plural variants.
+                # Companion payloads have been seen with both singular and plural variants.
                 ("leagueTeamInfoList", "teams"),
                 ("leagueTeamsInfoList", "teams"),
             ]
@@ -497,9 +497,9 @@ def ingest_companion_payload(
     if payload_type in {"passing", "rushing", "defense"}:
         stats = _transform_madden_stats(rows, payload_type)
         return ingest_companion_stats(league.id, stats, session)
-    should_ingest_teams = payload_type == "teams" or normalized_path in {"teams", "leagueteams"}
+    should_transform_teams = payload_type == "teams" or normalized_path == "leagueteams"
+    should_ingest_teams = should_transform_teams or normalized_path == "teams"
     if should_ingest_teams:
-        should_transform_teams = payload_type == "teams" or normalized_path == "leagueteams"
         teams = _transform_madden_teams(rows) if should_transform_teams else [TeamIn.model_validate(row) for row in rows]
         return ingest_teams(league.id, league.api_key, teams, session)
     if normalized_path == "standings":
@@ -840,11 +840,9 @@ async def ingest_madden_companion(
             if parsed_query:
                 parsed_form: Dict[str, Any] = {}
                 for key, values in parsed_query.items():
-                    parsed_form[key] = values
+                    parsed_form[key] = values if len(values) > 1 else values[0]
                 for candidate_key in COMPANION_JSON_FORM_KEYS:
                     candidate = parsed_form.get(candidate_key)
-                    if isinstance(candidate, list) and len(candidate) == 1:
-                        candidate = candidate[0]
                     if isinstance(candidate, str):
                         try:
                             payload = json.loads(candidate)
