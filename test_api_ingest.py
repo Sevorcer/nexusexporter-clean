@@ -38,6 +38,45 @@ class ApiIngestTests(unittest.TestCase):
             session.add(league)
             session.commit()
 
+    def seed_sample_league_data(self):
+        self.create_league(api_key="sample-key")
+        self.client.post(
+            "/api/1/teams?key=sample-key",
+            json=[
+                {"id": 10, "team_name": "Lions"},
+                {"id": 20, "team_name": "Bears"},
+            ],
+        )
+        self.client.post(
+            "/api/1/rosters?key=sample-key",
+            json=[
+                {"id": 100, "team_id": 10, "first_name": "Jared", "last_name": "Goff", "position": "QB"},
+                {"id": 101, "team_id": 20, "first_name": "DJ", "last_name": "Moore", "position": "WR"},
+            ],
+        )
+        self.client.post(
+            "/api/1/standings?key=sample-key",
+            json=[
+                {"team_id": 20, "wins": 8, "losses": 2, "ties": 0},
+                {"team_id": 10, "wins": 6, "losses": 4, "ties": 0},
+            ],
+        )
+        self.client.post(
+            "/api/1/schedules?key=sample-key",
+            json=[
+                {"week_number": 1, "season_number": 1, "home_team_id": 10, "away_team_id": 20, "home_score": 21, "away_score": 24, "is_complete": True},
+                {"week_number": 2, "season_number": 1, "home_team_id": 20, "away_team_id": 10, "is_complete": False},
+            ],
+        )
+        self.client.post(
+            "/api/1/stats?key=sample-key",
+            json=[
+                {"player_id": 100, "week_number": 1, "season_number": 1, "pass_yards": 300, "pass_tds": 2, "rush_tds": 0, "rec_tds": 0},
+                {"player_id": 100, "week_number": 2, "season_number": 1, "pass_yards": 250, "pass_tds": 1, "rush_tds": 0, "rec_tds": 0},
+                {"player_id": 101, "week_number": 1, "season_number": 1, "rec_yards": 125, "rec_tds": 1, "sacks": 0, "defensive_ints": 0},
+            ],
+        )
+
     def test_invalid_api_key_returns_403(self):
         self.create_league()
         response = self.client.post("/api/1/teams?key=wrong-key", json=[])
@@ -103,6 +142,51 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(week_1[0].pass_yards, 410)
             self.assertEqual(len(week_2), 1)
             self.assertEqual(week_2[0].pass_yards, 350)
+
+    def test_get_endpoints_require_valid_api_key(self):
+        self.create_league(api_key="valid-key")
+        response = self.client.get("/api/1/teams?key=bad-key")
+        self.assertEqual(response.status_code, 403)
+
+    def test_get_rosters_and_stats_support_filters(self):
+        self.seed_sample_league_data()
+
+        roster_response = self.client.get("/api/1/rosters?key=sample-key&team_id=10")
+        self.assertEqual(roster_response.status_code, 200)
+        roster = roster_response.json()
+        self.assertEqual(len(roster), 1)
+        self.assertEqual(roster[0]["id"], 100)
+
+        stats_response = self.client.get("/api/1/stats?key=sample-key&player_id=100&week_number=2&season_number=1")
+        self.assertEqual(stats_response.status_code, 200)
+        stats = stats_response.json()
+        self.assertEqual(len(stats), 1)
+        self.assertEqual(stats[0]["pass_yards"], 250)
+
+    def test_get_schedules_filters_by_week_and_season(self):
+        self.seed_sample_league_data()
+        response = self.client.get("/api/1/schedules?key=sample-key&week_number=1&season_number=1")
+        self.assertEqual(response.status_code, 200)
+        schedules = response.json()
+        self.assertEqual(len(schedules), 1)
+        self.assertTrue(schedules[0]["is_complete"])
+
+    def test_stat_leaders_returns_ranked_categories(self):
+        self.seed_sample_league_data()
+        response = self.client.get("/api/1/stat_leaders?key=sample-key&season_number=1&limit=1")
+        self.assertEqual(response.status_code, 200)
+        leaders = response.json()
+        self.assertEqual(leaders["pass_yards"][0]["player_id"], 100)
+        self.assertEqual(leaders["rec_yards"][0]["player_id"], 101)
+        self.assertEqual(len(leaders["pass_yards"]), 1)
+
+    def test_get_standings_sorted_by_wins_desc(self):
+        self.seed_sample_league_data()
+        response = self.client.get("/api/1/standings?key=sample-key")
+        self.assertEqual(response.status_code, 200)
+        standings = response.json()
+        self.assertEqual(standings[0]["team_id"], 20)
+        self.assertEqual(standings[1]["team_id"], 10)
 
 
 if __name__ == "__main__":

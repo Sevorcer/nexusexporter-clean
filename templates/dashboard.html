@@ -51,6 +51,7 @@
             {% for league in leagues %}
                 <li>
                     <strong>{{ league.name }}</strong><br>
+                    <a href="/league/{{ league.id }}">View League Dashboard</a><br>
                     API Key: <span class="league-key" id="key-{{ loop.index }}">{{ league.api_key }}</span>
                     <button class="copy-btn" onclick="copyApiKey('{{ league.api_key }}', {{ loop.index }})">Copy</button>
                     <span id="copied-{{ loop.index }}" style="display:none;color:green;">(Copied!)</span>

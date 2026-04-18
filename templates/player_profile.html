@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ player.first_name or "" }} {{ player.last_name or "" }} - Profile</title>
+</head>
+<body>
+    <h1>{{ player.first_name or "" }} {{ player.last_name or "" }}</h1>
+    <a href="/league/{{ league.id }}/roster">Back to Roster</a>
+    <p>Position: {{ player.position or "" }}</p>
+    <p>Team: {{ team.team_name if team else "Free Agent" }}</p>
+    <p>Overall: {{ player.overall_rating or "" }}</p>
+    <p>Age: {{ player.age or "" }}</p>
+    <p>Dev Trait: {{ player.dev_trait or "" }}</p>
+
+    <h2>Weekly Stats History</h2>
+    <table border="1" cellpadding="6" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Season</th>
+                <th>Week</th>
+                <th>Pass Yards</th>
+                <th>Rush Yards</th>
+                <th>Rec Yards</th>
+                <th>Total TDs</th>
+                <th>Sacks</th>
+                <th>INTs</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in stats_rows %}
+                <tr>
+                    <td>{{ row.season_number }}</td>
+                    <td>{{ row.week_number }}</td>
+                    <td>{{ row.pass_yards or 0 }}</td>
+                    <td>{{ row.rush_yards or 0 }}</td>
+                    <td>{{ row.rec_yards or 0 }}</td>
+                    <td>{{ (row.pass_tds or 0) + (row.rush_tds or 0) + (row.rec_tds or 0) }}</td>
+                    <td>{{ row.sacks or 0 }}</td>
+                    <td>{{ row.defensive_ints or 0 }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

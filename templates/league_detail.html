@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ league.name }} - League Dashboard</title>
+</head>
+<body>
+    <h1>{{ league.name }}</h1>
+    <p>League ID: {{ league.id }}</p>
+    <p>Teams: {{ teams_count }} | Players: {{ players_count }}</p>
+    <ul>
+        <li><a href="/league/{{ league.id }}/standings">Standings</a></li>
+        <li><a href="/league/{{ league.id }}/roster">Roster</a></li>
+        <li><a href="/league/{{ league.id }}/schedule">Schedule</a></li>
+        <li><a href="/league/{{ league.id }}/leaders">Stat Leaders</a></li>
+    </ul>
+</body>
+</html>

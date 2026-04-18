@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ league.name }} - Stat Leaders</title>
+</head>
+<body>
+    <h1>{{ league.name }} Stat Leaders</h1>
+    <a href="/league/{{ league.id }}">Back to League</a>
+
+    <h2>Passing Yards</h2>
+    <ol>
+        {% for entry in leaders.pass_yards %}
+            <li><a href="/league/{{ league.id }}/player/{{ entry.player_id }}">{{ entry.player_name }}</a> ({{ entry.value }})</li>
+        {% endfor %}
+    </ol>
+
+    <h2>Rushing Yards</h2>
+    <ol>
+        {% for entry in leaders.rush_yards %}
+            <li><a href="/league/{{ league.id }}/player/{{ entry.player_id }}">{{ entry.player_name }}</a> ({{ entry.value }})</li>
+        {% endfor %}
+    </ol>
+
+    <h2>Receiving Yards</h2>
+    <ol>
+        {% for entry in leaders.rec_yards %}
+            <li><a href="/league/{{ league.id }}/player/{{ entry.player_id }}">{{ entry.player_name }}</a> ({{ entry.value }})</li>
+        {% endfor %}
+    </ol>
+
+    <h2>Total Touchdowns</h2>
+    <ol>
+        {% for entry in leaders.total_tds %}
+            <li><a href="/league/{{ league.id }}/player/{{ entry.player_id }}">{{ entry.player_name }}</a> ({{ entry.value }})</li>
+        {% endfor %}
+    </ol>
+
+    <h2>Sacks</h2>
+    <ol>
+        {% for entry in leaders.sacks %}
+            <li><a href="/league/{{ league.id }}/player/{{ entry.player_id }}">{{ entry.player_name }}</a> ({{ entry.value }})</li>
+        {% endfor %}
+    </ol>
+
+    <h2>Interceptions</h2>
+    <ol>
+        {% for entry in leaders.ints %}
+            <li><a href="/league/{{ league.id }}/player/{{ entry.player_id }}">{{ entry.player_name }}</a> ({{ entry.value }})</li>
+        {% endfor %}
+    </ol>
+</body>
+</html>

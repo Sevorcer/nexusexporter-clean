@@ -1,6 +1,7 @@
 import os
 import secrets
-from typing import Optional, List, Any, Dict, Set, Tuple, Type
+from typing import Optional, List, Any, Dict, Set, Tuple, Type, DefaultDict
+from collections import defaultdict
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, Request, Form, Depends, status, HTTPException, Body, Query
@@ -215,6 +216,80 @@ def clear_teams_and_dependencies(session: Session, league_id: int) -> int:
             cleared_team_records = cleared
     return cleared_team_records
 
+
+def get_league_or_404(league_id: int, session: Session) -> League:
+    league = session.get(League, league_id)
+    if league is None:
+        raise HTTPException(status_code=404, detail="League not found")
+    return league
+
+
+def build_stat_leaders(
+    session: Session,
+    league_id: int,
+    season_number: Optional[int] = None,
+    limit: int = 10,
+) -> Dict[str, List[Dict[str, Any]]]:
+    stats_query = select(PlayerStats).where(PlayerStats.league_id == league_id)
+    if season_number is not None:
+        stats_query = stats_query.where(PlayerStats.season_number == season_number)
+    stats_rows = session.exec(stats_query).all()
+
+    aggregates: DefaultDict[int, Dict[str, int]] = defaultdict(
+        lambda: {
+            "pass_yards": 0,
+            "rush_yards": 0,
+            "rec_yards": 0,
+            "total_tds": 0,
+            "sacks": 0,
+            "ints": 0,
+        }
+    )
+    for row in stats_rows:
+        if row.player_id is None:
+            continue
+        values = aggregates[row.player_id]
+        values["pass_yards"] += row.pass_yards or 0
+        values["rush_yards"] += row.rush_yards or 0
+        values["rec_yards"] += row.rec_yards or 0
+        values["total_tds"] += (row.pass_tds or 0) + (row.rush_tds or 0) + (row.rec_tds or 0)
+        values["sacks"] += row.sacks or 0
+        values["ints"] += row.defensive_ints or 0
+
+    players = session.exec(select(Player).where(Player.league_id == league_id)).all()
+    teams = session.exec(select(Team).where(Team.league_id == league_id)).all()
+    player_map = {p.id: p for p in players if p.id is not None}
+    team_map = {t.id: t for t in teams if t.id is not None}
+
+    def leader_list(metric: str) -> List[Dict[str, Any]]:
+        sorted_items = sorted(aggregates.items(), key=lambda item: item[1][metric], reverse=True)[:limit]
+        results: List[Dict[str, Any]] = []
+        for player_id, values in sorted_items:
+            player = player_map.get(player_id)
+            if player is None:
+                continue
+            team = team_map.get(player.team_id)
+            results.append(
+                {
+                    "player_id": player_id,
+                    "player_name": f"{player.first_name or ''} {player.last_name or ''}".strip(),
+                    "position": player.position,
+                    "team_id": player.team_id,
+                    "team_name": team.team_name if team else None,
+                    "value": values[metric],
+                }
+            )
+        return results
+
+    return {
+        "pass_yards": leader_list("pass_yards"),
+        "rush_yards": leader_list("rush_yards"),
+        "rec_yards": leader_list("rec_yards"),
+        "total_tds": leader_list("total_tds"),
+        "sacks": leader_list("sacks"),
+        "ints": leader_list("ints"),
+    }
+
 # ----------- ROUTES -----------
 
 @app.get("/", response_class=HTMLResponse)
@@ -405,6 +480,195 @@ def ingest_stats(
         session.add(PlayerStats(league_id=league_id, **payload))
     session.commit()
     return {"success": True, "cleared": cleared, "inserted": len(stats)}
+
+
+@app.get("/api/{league_id}/teams")
+def get_teams(
+    league_id: int,
+    key: str = Query(...),
+    session: Session = Depends(get_session),
+):
+    validate_api_key(league_id, key, session)
+    teams = session.exec(select(Team).where(Team.league_id == league_id)).all()
+    return [team.model_dump() for team in teams]
+
+
+@app.get("/api/{league_id}/rosters")
+def get_rosters(
+    league_id: int,
+    key: str = Query(...),
+    team_id: Optional[int] = Query(default=None),
+    session: Session = Depends(get_session),
+):
+    validate_api_key(league_id, key, session)
+    query = select(Player).where(Player.league_id == league_id)
+    if team_id is not None:
+        query = query.where(Player.team_id == team_id)
+    players = session.exec(query).all()
+    return [player.model_dump() for player in players]
+
+
+@app.get("/api/{league_id}/standings")
+def get_standings(
+    league_id: int,
+    key: str = Query(...),
+    session: Session = Depends(get_session),
+):
+    validate_api_key(league_id, key, session)
+    standings = session.exec(select(Standing).where(Standing.league_id == league_id)).all()
+    standings = sorted(standings, key=lambda s: (s.wins or 0), reverse=True)
+    return [standing.model_dump() for standing in standings]
+
+
+@app.get("/api/{league_id}/schedules")
+def get_schedules(
+    league_id: int,
+    key: str = Query(...),
+    week_number: Optional[int] = Query(default=None),
+    season_number: Optional[int] = Query(default=None),
+    session: Session = Depends(get_session),
+):
+    validate_api_key(league_id, key, session)
+    query = select(Schedule).where(Schedule.league_id == league_id)
+    if week_number is not None:
+        query = query.where(Schedule.week_number == week_number)
+    if season_number is not None:
+        query = query.where(Schedule.season_number == season_number)
+    schedules = session.exec(query).all()
+    return [schedule.model_dump() for schedule in schedules]
+
+
+@app.get("/api/{league_id}/stats")
+def get_stats(
+    league_id: int,
+    key: str = Query(...),
+    week_number: Optional[int] = Query(default=None),
+    season_number: Optional[int] = Query(default=None),
+    player_id: Optional[int] = Query(default=None),
+    session: Session = Depends(get_session),
+):
+    validate_api_key(league_id, key, session)
+    query = select(PlayerStats).where(PlayerStats.league_id == league_id)
+    if week_number is not None:
+        query = query.where(PlayerStats.week_number == week_number)
+    if season_number is not None:
+        query = query.where(PlayerStats.season_number == season_number)
+    if player_id is not None:
+        query = query.where(PlayerStats.player_id == player_id)
+    stats = session.exec(query).all()
+    return [stat.model_dump() for stat in stats]
+
+
+@app.get("/api/{league_id}/stat_leaders")
+def get_stat_leaders(
+    league_id: int,
+    key: str = Query(...),
+    season_number: Optional[int] = Query(default=None),
+    limit: int = Query(default=10, ge=1),
+    session: Session = Depends(get_session),
+):
+    validate_api_key(league_id, key, session)
+    return build_stat_leaders(session, league_id, season_number=season_number, limit=limit)
+
+
+@app.get("/league/{league_id}", response_class=HTMLResponse)
+def league_detail_page(league_id: int, request: Request, session: Session = Depends(get_session)):
+    league = get_league_or_404(league_id, session)
+    teams_count = len(session.exec(select(Team).where(Team.league_id == league_id)).all())
+    players_count = len(session.exec(select(Player).where(Player.league_id == league_id)).all())
+    return templates.TemplateResponse(
+        "league_detail.html",
+        {"request": request, "league": league, "teams_count": teams_count, "players_count": players_count},
+    )
+
+
+@app.get("/league/{league_id}/standings", response_class=HTMLResponse)
+def league_standings_page(league_id: int, request: Request, session: Session = Depends(get_session)):
+    league = get_league_or_404(league_id, session)
+    standings = session.exec(select(Standing).where(Standing.league_id == league_id)).all()
+    team_map = {
+        team.id: team
+        for team in session.exec(select(Team).where(Team.league_id == league_id)).all()
+        if team.id is not None
+    }
+    standings = sorted(standings, key=lambda s: (s.wins or 0), reverse=True)
+    return templates.TemplateResponse(
+        "league_standings.html",
+        {"request": request, "league": league, "standings": standings, "team_map": team_map},
+    )
+
+
+@app.get("/league/{league_id}/roster", response_class=HTMLResponse)
+def league_roster_page(league_id: int, request: Request, session: Session = Depends(get_session)):
+    league = get_league_or_404(league_id, session)
+    teams = session.exec(select(Team).where(Team.league_id == league_id)).all()
+    players = session.exec(select(Player).where(Player.league_id == league_id)).all()
+    players_by_team: DefaultDict[Optional[int], List[Player]] = defaultdict(list)
+    for player in players:
+        players_by_team[player.team_id].append(player)
+
+    sorted_team_players: List[Tuple[Team, List[Player]]] = []
+    for team in sorted(teams, key=lambda t: t.team_name or ""):
+        team_players = sorted(players_by_team.get(team.id, []), key=lambda p: (p.last_name or "", p.first_name or ""))
+        sorted_team_players.append((team, team_players))
+
+    return templates.TemplateResponse(
+        "league_roster.html",
+        {"request": request, "league": league, "team_players": sorted_team_players},
+    )
+
+
+@app.get("/league/{league_id}/schedule", response_class=HTMLResponse)
+def league_schedule_page(league_id: int, request: Request, session: Session = Depends(get_session)):
+    league = get_league_or_404(league_id, session)
+    schedules = session.exec(select(Schedule).where(Schedule.league_id == league_id)).all()
+    team_map = {
+        team.id: team
+        for team in session.exec(select(Team).where(Team.league_id == league_id)).all()
+        if team.id is not None
+    }
+    games_by_week: DefaultDict[int, List[Schedule]] = defaultdict(list)
+    for game in schedules:
+        games_by_week[game.week_number].append(game)
+    week_groups = sorted(games_by_week.items(), key=lambda item: item[0])
+    return templates.TemplateResponse(
+        "league_schedule.html",
+        {"request": request, "league": league, "week_groups": week_groups, "team_map": team_map},
+    )
+
+
+@app.get("/league/{league_id}/leaders", response_class=HTMLResponse)
+def league_leaders_page(league_id: int, request: Request, session: Session = Depends(get_session)):
+    league = get_league_or_404(league_id, session)
+    leaders = build_stat_leaders(session, league_id, season_number=None, limit=10)
+    return templates.TemplateResponse(
+        "league_leaders.html",
+        {"request": request, "league": league, "leaders": leaders},
+    )
+
+
+@app.get("/league/{league_id}/player/{player_id}", response_class=HTMLResponse)
+def player_profile_page(league_id: int, player_id: int, request: Request, session: Session = Depends(get_session)):
+    league = get_league_or_404(league_id, session)
+    player = session.exec(
+        select(Player).where(Player.league_id == league_id, Player.id == player_id)
+    ).first()
+    if player is None:
+        raise HTTPException(status_code=404, detail="Player not found")
+    team = None
+    if player.team_id is not None:
+        team = session.get(Team, player.team_id)
+    stats_rows = session.exec(
+        select(PlayerStats).where(
+            PlayerStats.league_id == league_id,
+            PlayerStats.player_id == player_id,
+        )
+    ).all()
+    stats_rows = sorted(stats_rows, key=lambda s: (s.season_number, s.week_number))
+    return templates.TemplateResponse(
+        "player_profile.html",
+        {"request": request, "league": league, "player": player, "team": team, "stats_rows": stats_rows},
+    )
 
 @app.get("/home", response_class=HTMLResponse)
 def home(request: Request):

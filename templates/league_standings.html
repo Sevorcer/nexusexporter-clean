@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ league.name }} - Standings</title>
+</head>
+<body>
+    <h1>{{ league.name }} Standings</h1>
+    <a href="/league/{{ league.id }}">Back to League</a>
+    <table border="1" cellpadding="6" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Team</th>
+                <th>Wins</th>
+                <th>Losses</th>
+                <th>Ties</th>
+                <th>Division</th>
+                <th>Seed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for standing in standings %}
+                {% set team = team_map.get(standing.team_id) %}
+                <tr>
+                    <td>{{ team.team_name if team else "Unknown Team" }}</td>
+                    <td>{{ standing.wins or 0 }}</td>
+                    <td>{{ standing.losses or 0 }}</td>
+                    <td>{{ standing.ties or 0 }}</td>
+                    <td>{{ standing.division_name or "" }}</td>
+                    <td>{{ standing.seed or "" }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
