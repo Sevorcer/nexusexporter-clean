@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, Form, Depends, status, HTTPException, Body
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import SQLModel, Field, Relationship, Session, select, create_engine
+from sqlmodel import SQLModel, Field, Relationship, Session, select, create_engine, delete
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
 
@@ -201,10 +201,8 @@ def validate_api_key(league_id: int, key: str, session: Session) -> League:
     return league
 
 def clear_league_records(session: Session, model: Type[SQLModel], league_id: int) -> int:
-    records = session.exec(select(model).where(model.league_id == league_id)).all()
-    for record in records:
-        session.delete(record)
-    return len(records)
+    result = session.exec(delete(model).where(model.league_id == league_id))
+    return result.rowcount or 0
 
 def clear_team_related_records(session: Session, league_id: int) -> int:
     """Delete dependent league rows before Team rows to satisfy FK constraints."""
@@ -392,16 +390,14 @@ def ingest_stats(
 
     cleared = 0
     for week_number, season_number in week_season_pairs:
-        records = session.exec(
-            select(PlayerStats).where(
+        result = session.exec(
+            delete(PlayerStats).where(
                 PlayerStats.league_id == league_id,
                 PlayerStats.week_number == week_number,
                 PlayerStats.season_number == season_number,
             )
-        ).all()
-        cleared += len(records)
-        for record in records:
-            session.delete(record)
+        )
+        cleared += result.rowcount or 0
 
     for stat_data in stats:
         payload = stat_data.model_dump(exclude_unset=True)
