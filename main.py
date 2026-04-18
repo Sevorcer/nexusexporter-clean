@@ -3,7 +3,7 @@ import json
 import secrets
 from typing import Optional, List, Any, Dict, Set, Tuple, Type, DefaultDict, Literal
 from collections import defaultdict
-from urllib.parse import urlencode
+from urllib.parse import urlencode, parse_qs
 
 from fastapi import FastAPI, Request, Form, Depends, status, HTTPException, Body, Query
 from fastapi.responses import RedirectResponse, HTMLResponse
@@ -20,6 +20,7 @@ DISCORD_CLIENT_ID = os.environ["DISCORD_CLIENT_ID"]
 DISCORD_CLIENT_SECRET = os.environ["DISCORD_CLIENT_SECRET"]
 DISCORD_REDIRECT_URI = os.environ["DISCORD_REDIRECT_URI"]
 MAX_MADDEN_LEAGUE_ID_LENGTH = 64
+COMPANION_JSON_FORM_KEYS = ("payload", "data", "body", "json")
 
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
@@ -263,17 +264,20 @@ def _to_float(value: Any) -> Optional[float]:
         return None
 
 
-def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings", "roster", "schedule", "passing", "rushing", "defense"]], List[Dict[str, Any]]]:
+def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams"]], List[Dict[str, Any]]]:
     if isinstance(payload, dict):
         content = payload.get("content")
         if isinstance(content, dict):
-            mapping: List[Tuple[str, Literal["standings", "roster", "schedule", "passing", "rushing", "defense"]]] = [
+            mapping: List[Tuple[str, Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams"]]] = [
                 ("teamStandingInfoList", "standings"),
                 ("rosterInfoList", "roster"),
                 ("gameScheduleInfoList", "schedule"),
                 ("playerPassingStatInfoList", "passing"),
                 ("playerRushingStatInfoList", "rushing"),
                 ("playerDefensiveStatInfoList", "defense"),
+                # Companion payloads have been seen with both singular and plural variants.
+                ("leagueTeamInfoList", "teams"),
+                ("leagueTeamsInfoList", "teams"),
             ]
             for key, payload_type in mapping:
                 rows = content.get(key)
@@ -361,6 +365,25 @@ def _transform_madden_schedule(rows: List[Dict[str, Any]]) -> List[ScheduleIn]:
             )
         )
     return schedules
+
+
+def _transform_madden_teams(rows: List[Dict[str, Any]]) -> List[TeamIn]:
+    teams: List[TeamIn] = []
+    for row in rows:
+        teams.append(
+            TeamIn(
+                id=_to_int(_pick(row, "teamId", "team_id", "id")),
+                team_name=_pick(row, "teamName", "team_name"),
+                abbreviation=_pick(row, "teamAbbreviation", "abbreviation"),
+                division=_pick(row, "divisionName", "division"),
+                overall_rating=_to_int(_pick(row, "teamOvr", "overall_rating")),
+                wins=_to_int(_pick(row, "totalWins", "wins")),
+                losses=_to_int(_pick(row, "totalLosses", "losses")),
+                ties=_to_int(_pick(row, "totalTies", "ties")),
+                city_name=_pick(row, "cityName", "city_name"),
+            )
+        )
+    return teams
 
 
 def _transform_madden_stats(rows: List[Dict[str, Any]], payload_type: Literal["passing", "rushing", "defense"]) -> List[PlayerStatsIn]:
@@ -474,9 +497,10 @@ def ingest_companion_payload(
     if payload_type in {"passing", "rushing", "defense"}:
         stats = _transform_madden_stats(rows, payload_type)
         return ingest_companion_stats(league.id, stats, session)
-
-    if normalized_path == "teams":
-        teams = [TeamIn.model_validate(row) for row in rows]
+    should_transform_teams = payload_type == "teams" or normalized_path == "leagueteams"
+    should_ingest_teams = should_transform_teams or normalized_path == "teams"
+    if should_ingest_teams:
+        teams = _transform_madden_teams(rows) if should_transform_teams else [TeamIn.model_validate(row) for row in rows]
         return ingest_teams(league.id, league.api_key, teams, session)
     if normalized_path == "standings":
         standings = [StandingIn.model_validate(row) for row in rows]
@@ -492,6 +516,12 @@ def ingest_companion_payload(
 
     segments = normalized_path.split("/")
     if len(segments) == 4 and segments[0] == "week":
+        if segments[3] in {"team", "kicking", "punting"}:
+            return {
+                "success": True,
+                "tracked": False,
+                "message": f"Companion stat type '{segments[3]}' received but not tracked",
+            }
         stats = [PlayerStatsIn.model_validate(row) for row in rows]
         return ingest_companion_stats(league.id, stats, session)
 
@@ -790,14 +820,62 @@ def ingest_stats(
 
 @app.post("//{platform}/{madden_league_id}/{companion_path:path}")
 @app.post("/{platform}/{madden_league_id}/{companion_path:path}")
-def ingest_madden_companion(
+async def ingest_madden_companion(
+    request: Request,
     platform: str,
     madden_league_id: str,
     companion_path: str,
-    payload: Any = Body(...),
     session: Session = Depends(get_session),
 ):
-    return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
+    raw_body = await request.body()
+    if raw_body:
+        try:
+            payload = json.loads(raw_body)
+            return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
+        except json.JSONDecodeError:
+            try:
+                parsed_query = parse_qs(raw_body.decode("utf-8"), keep_blank_values=True)
+            except UnicodeDecodeError:
+                parsed_query = {}
+            if parsed_query:
+                parsed_form: Dict[str, Any] = {}
+                for key, values in parsed_query.items():
+                    parsed_form[key] = values if len(values) > 1 else values[0]
+                for candidate_key in COMPANION_JSON_FORM_KEYS:
+                    candidate = parsed_form.get(candidate_key)
+                    if isinstance(candidate, str):
+                        try:
+                            payload = json.loads(candidate)
+                            return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
+                        except json.JSONDecodeError:
+                            continue
+                return ingest_companion_payload(platform, madden_league_id, companion_path, parsed_form, session)
+
+    form = await request.form()
+    if form:
+        normalized_form: Dict[str, Any] = {}
+        for key, value in form.multi_items():
+            existing = normalized_form.get(key)
+            if existing is None:
+                normalized_form[key] = value
+            elif isinstance(existing, list):
+                existing.append(value)
+            else:
+                normalized_form[key] = [existing, value]
+        for candidate_key in COMPANION_JSON_FORM_KEYS:
+            candidate = normalized_form.get(candidate_key)
+            if isinstance(candidate, str):
+                try:
+                    payload = json.loads(candidate)
+                    return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
+                except json.JSONDecodeError:
+                    continue
+        return ingest_companion_payload(platform, madden_league_id, companion_path, normalized_form, session)
+
+    raise HTTPException(
+        status_code=422,
+        detail="Unable to parse companion payload. Expected JSON body or form-encoded data.",
+    )
 
 
 @app.get("/api/{league_id}/teams")
