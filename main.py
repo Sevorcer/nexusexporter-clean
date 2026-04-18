@@ -1,6 +1,7 @@
 import os
+import json
 import secrets
-from typing import Optional, List, Any, Dict, Set, Tuple, Type, DefaultDict
+from typing import Optional, List, Any, Dict, Set, Tuple, Type, DefaultDict, Literal
 from collections import defaultdict
 from urllib.parse import urlencode
 
@@ -236,11 +237,218 @@ def get_league_by_madden_id_or_404(madden_league_id: str, session: Session) -> L
     raise HTTPException(status_code=404, detail="League not found")
 
 
+def _pick(row: Dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in row:
+            return row[key]
+    return None
+
+
+def _to_int(value: Any) -> Optional[int]:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_float(value: Any) -> Optional[float]:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings", "roster", "schedule", "passing", "rushing", "defense"]], List[Dict[str, Any]]]:
+    if isinstance(payload, dict):
+        content = payload.get("content")
+        if isinstance(content, dict):
+            mapping: List[Tuple[str, Literal["standings", "roster", "schedule", "passing", "rushing", "defense"]]] = [
+                ("teamStandingInfoList", "standings"),
+                ("rosterInfoList", "roster"),
+                ("gameScheduleInfoList", "schedule"),
+                ("playerPassingStatInfoList", "passing"),
+                ("playerRushingStatInfoList", "rushing"),
+                ("playerDefensiveStatInfoList", "defense"),
+            ]
+            for key, payload_type in mapping:
+                rows = content.get(key)
+                if isinstance(rows, list):
+                    return payload_type, [row for row in rows if isinstance(row, dict)]
+        raise HTTPException(status_code=422, detail="Invalid companion payload format")
+
+    if isinstance(payload, list):
+        return None, [row for row in payload if isinstance(row, dict)]
+
+    raise HTTPException(status_code=422, detail="Invalid companion payload format")
+
+
+def _transform_madden_standings(rows: List[Dict[str, Any]]) -> Tuple[List[StandingIn], List[TeamIn]]:
+    standings: List[StandingIn] = []
+    teams: List[TeamIn] = []
+    for row in rows:
+        team_id = _to_int(_pick(row, "teamId", "team_id"))
+        standings.append(
+            StandingIn(
+                team_id=team_id,
+                wins=_to_int(_pick(row, "totalWins", "wins")),
+                losses=_to_int(_pick(row, "totalLosses", "losses")),
+                ties=_to_int(_pick(row, "totalTies", "ties")),
+                division_name=_pick(row, "divisionName", "division_name"),
+                seed=_to_int(_pick(row, "seed")),
+            )
+        )
+        if team_id is not None:
+            teams.append(
+                TeamIn(
+                    id=team_id,
+                    team_name=_pick(row, "teamName", "team_name"),
+                    division=_pick(row, "divisionName", "division_name"),
+                    overall_rating=_to_int(_pick(row, "teamOvr", "overall_rating")),
+                    wins=_to_int(_pick(row, "totalWins", "wins")),
+                    losses=_to_int(_pick(row, "totalLosses", "losses")),
+                    ties=_to_int(_pick(row, "totalTies", "ties")),
+                )
+            )
+    return standings, teams
+
+
+def _transform_madden_roster(rows: List[Dict[str, Any]]) -> List[PlayerIn]:
+    players: List[PlayerIn] = []
+    for row in rows:
+        signature_slots = _pick(row, "signatureSlotList")
+        dev_trait = _pick(row, "devTraitLabel", "devTrait", "dev_trait")
+        if dev_trait is None and isinstance(signature_slots, list):
+            dev_trait = json.dumps(signature_slots)
+        players.append(
+            PlayerIn(
+                id=_to_int(_pick(row, "rosterId", "id")),
+                team_id=_to_int(_pick(row, "teamId", "team_id")),
+                first_name=_pick(row, "firstName", "first_name"),
+                last_name=_pick(row, "lastName", "last_name"),
+                position=_pick(row, "position"),
+                overall_rating=_to_int(_pick(row, "playerSchemeOvr", "overallRating", "playerBestOvr", "overall_rating")),
+                age=_to_int(_pick(row, "age")),
+                jersey_number=_to_int(_pick(row, "jerseyNum", "jersey_number")),
+                dev_trait=dev_trait,
+                contract_years=_to_int(_pick(row, "contractYearsLeft", "contract_years")),
+                contract_salary=_to_float(_pick(row, "contractSalary", "contract_salary")),
+            )
+        )
+    return players
+
+
+def _transform_madden_schedule(rows: List[Dict[str, Any]]) -> List[ScheduleIn]:
+    schedules: List[ScheduleIn] = []
+    for row in rows:
+        status = _pick(row, "status")
+        status_text = str(status).lower() if status is not None else ""
+        is_complete = status_text in {"final", "played", "complete", "completed"}
+        schedules.append(
+            ScheduleIn(
+                id=_to_int(_pick(row, "scheduleId", "id")),
+                week_number=_to_int(_pick(row, "weekIndex", "week_number")) or 0,
+                season_number=_to_int(_pick(row, "seasonIndex", "season_number")) or 0,
+                home_team_id=_to_int(_pick(row, "homeTeamId", "home_team_id")),
+                away_team_id=_to_int(_pick(row, "awayTeamId", "away_team_id")),
+                home_score=_to_int(_pick(row, "homeScore", "home_score")),
+                away_score=_to_int(_pick(row, "awayScore", "away_score")),
+                is_complete=is_complete or bool(_pick(row, "is_complete")),
+            )
+        )
+    return schedules
+
+
+def _transform_madden_stats(rows: List[Dict[str, Any]], payload_type: Literal["passing", "rushing", "defense"]) -> List[PlayerStatsIn]:
+    stats: List[PlayerStatsIn] = []
+    for row in rows:
+        stat = PlayerStatsIn(
+            player_id=_to_int(_pick(row, "rosterId", "player_id")),
+            week_number=_to_int(_pick(row, "weekIndex", "week_number")) or 0,
+            season_number=_to_int(_pick(row, "seasonIndex", "season_number")) or 0,
+        )
+        if payload_type == "passing":
+            stat.pass_yards = _to_int(_pick(row, "passYds", "pass_yards"))
+            stat.pass_tds = _to_int(_pick(row, "passTDs", "pass_tds"))
+            stat.interceptions = _to_int(_pick(row, "passInts", "interceptions"))
+        elif payload_type == "rushing":
+            stat.rush_yards = _to_int(_pick(row, "rushYds", "rush_yards"))
+            stat.rush_tds = _to_int(_pick(row, "rushTDs", "rush_tds"))
+        else:
+            stat.sacks = _to_int(_pick(row, "defSacks", "sacks"))
+            stat.defensive_ints = _to_int(_pick(row, "defInts", "defensive_ints"))
+            stat.tackles = _to_int(_pick(row, "defTotalTackles", "tackles"))
+        stats.append(stat)
+    return stats
+
+
+def _upsert_teams_from_standings(league_id: int, teams: List[TeamIn], session: Session) -> int:
+    upserted = 0
+    for team_data in teams:
+        if team_data.id is None:
+            continue
+        existing = session.exec(
+            select(Team).where(Team.league_id == league_id, Team.id == team_data.id)
+        ).first()
+        payload = team_data.model_dump(exclude_unset=True, exclude={"id"})
+        if existing is None:
+            session.add(Team(id=team_data.id, league_id=league_id, **payload))
+        else:
+            for field, value in payload.items():
+                setattr(existing, field, value)
+            session.add(existing)
+        upserted += 1
+    session.commit()
+    return upserted
+
+
+def ingest_companion_stats(league_id: int, stats: List[PlayerStatsIn], session: Session) -> Dict[str, Any]:
+    inserted = 0
+    updated = 0
+    for stat_data in stats:
+        payload = stat_data.model_dump(exclude_unset=True)
+        player_id = payload.get("player_id")
+        week_number = payload.get("week_number")
+        season_number = payload.get("season_number")
+        if week_number is None or season_number is None:
+            continue
+
+        existing = None
+        if player_id is not None:
+            existing = session.exec(
+                select(PlayerStats).where(
+                    PlayerStats.league_id == league_id,
+                    PlayerStats.player_id == player_id,
+                    PlayerStats.week_number == week_number,
+                    PlayerStats.season_number == season_number,
+                )
+            ).first()
+
+        if existing is None:
+            session.add(PlayerStats(league_id=league_id, **payload))
+            inserted += 1
+            continue
+
+        for field, value in payload.items():
+            if field in {"id", "player_id", "week_number", "season_number"}:
+                continue
+            if value is not None:
+                setattr(existing, field, value)
+        session.add(existing)
+        updated += 1
+
+    session.commit()
+    return {"success": True, "cleared": 0, "inserted": inserted, "updated": updated}
+
+
 def ingest_companion_payload(
     platform: str,
     madden_league_id: str,
     companion_path: str,
-    payload: List[Dict[str, Any]],
+    payload: Any,
     session: Session,
 ):
     supported_platforms = {"xbsx", "xone", "ps5", "ps4", "pc"}
@@ -250,25 +458,41 @@ def ingest_companion_payload(
     league = get_league_by_madden_id_or_404(madden_league_id, session)
     normalized_path = companion_path.strip("/")
 
+    payload_type, rows = _extract_companion_rows(payload)
+
+    if payload_type == "standings":
+        standings, teams_from_standings = _transform_madden_standings(rows)
+        _upsert_teams_from_standings(league.id, teams_from_standings, session)
+        return ingest_standings(league.id, league.api_key, standings, session)
+    if payload_type == "roster":
+        players = _transform_madden_roster(rows)
+        return ingest_rosters(league.id, league.api_key, players, session)
+    if payload_type == "schedule":
+        schedules = _transform_madden_schedule(rows)
+        return ingest_schedules(league.id, league.api_key, schedules, session)
+    if payload_type in {"passing", "rushing", "defense"}:
+        stats = _transform_madden_stats(rows, payload_type)
+        return ingest_companion_stats(league.id, stats, session)
+
     if normalized_path == "teams":
-        teams = [TeamIn.model_validate(row) for row in payload]
+        teams = [TeamIn.model_validate(row) for row in rows]
         return ingest_teams(league.id, league.api_key, teams, session)
     if normalized_path == "standings":
-        standings = [StandingIn.model_validate(row) for row in payload]
+        standings = [StandingIn.model_validate(row) for row in rows]
         return ingest_standings(league.id, league.api_key, standings, session)
     if normalized_path in {"schedules", "schedule"}:
-        schedules = [ScheduleIn.model_validate(row) for row in payload]
+        schedules = [ScheduleIn.model_validate(row) for row in rows]
         return ingest_schedules(league.id, league.api_key, schedules, session)
     if normalized_path == "freeagents/roster" or (
         normalized_path.startswith("team/") and normalized_path.endswith("/roster")
     ):
-        players = [PlayerIn.model_validate(row) for row in payload]
+        players = [PlayerIn.model_validate(row) for row in rows]
         return ingest_rosters(league.id, league.api_key, players, session)
 
     segments = normalized_path.split("/")
     if len(segments) == 4 and segments[0] == "week":
-        stats = [PlayerStatsIn.model_validate(row) for row in payload]
-        return ingest_stats(league.id, league.api_key, stats, session)
+        stats = [PlayerStatsIn.model_validate(row) for row in rows]
+        return ingest_companion_stats(league.id, stats, session)
 
     raise HTTPException(status_code=404, detail="Companion endpoint not supported")
 
@@ -537,7 +761,7 @@ def ingest_madden_companion(
     platform: str,
     madden_league_id: str,
     companion_path: str,
-    payload: List[Dict[str, Any]] = Body(...),
+    payload: Any = Body(...),
     session: Session = Depends(get_session),
 ):
     return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
