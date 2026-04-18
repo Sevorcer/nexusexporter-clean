@@ -1,6 +1,6 @@
 import os
 import secrets
-from typing import Optional, List, Any, Dict, Set, Tuple
+from typing import Optional, List, Any, Dict, Set, Tuple, Type
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, Request, Form, Depends, status, HTTPException, Body, Query
@@ -114,6 +114,67 @@ class PlayerStats(SQLModel, table=True):
     fumbles_forced: Optional[int] = None
     defensive_ints: Optional[int] = None
 
+class TeamIn(SQLModel):
+    id: Optional[int] = None
+    team_name: Optional[str] = None
+    abbreviation: Optional[str] = None
+    division: Optional[str] = None
+    overall_rating: Optional[int] = None
+    wins: Optional[int] = None
+    losses: Optional[int] = None
+    ties: Optional[int] = None
+    city_name: Optional[str] = None
+
+class PlayerIn(SQLModel):
+    id: Optional[int] = None
+    team_id: Optional[int] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    position: Optional[str] = None
+    overall_rating: Optional[int] = None
+    age: Optional[int] = None
+    jersey_number: Optional[int] = None
+    dev_trait: Optional[str] = None
+    contract_years: Optional[int] = None
+    contract_salary: Optional[float] = None
+
+class StandingIn(SQLModel):
+    id: Optional[int] = None
+    team_id: Optional[int] = None
+    wins: Optional[int] = None
+    losses: Optional[int] = None
+    ties: Optional[int] = None
+    division_name: Optional[str] = None
+    seed: Optional[int] = None
+
+class ScheduleIn(SQLModel):
+    id: Optional[int] = None
+    week_number: int
+    season_number: int
+    home_team_id: Optional[int] = None
+    away_team_id: Optional[int] = None
+    home_score: Optional[int] = None
+    away_score: Optional[int] = None
+    is_complete: bool = False
+
+class PlayerStatsIn(SQLModel):
+    id: Optional[int] = None
+    player_id: Optional[int] = None
+    week_number: int
+    season_number: int
+    pass_yards: Optional[int] = None
+    pass_tds: Optional[int] = None
+    interceptions: Optional[int] = None
+    rush_yards: Optional[int] = None
+    rush_tds: Optional[int] = None
+    rec_yards: Optional[int] = None
+    rec_tds: Optional[int] = None
+    receptions: Optional[int] = None
+    tackles: Optional[int] = None
+    sacks: Optional[int] = None
+    fumbles_forced: Optional[int] = None
+    defensive_ints: Optional[int] = None
+
 def create_db():
     SQLModel.metadata.create_all(engine)
 create_db()
@@ -145,8 +206,14 @@ def clear_league_records(session: Session, model: Any, league_id: int) -> int:
         session.delete(record)
     return len(records)
 
-def filter_payload(record: Dict[str, Any], allowed_fields: Set[str]) -> Dict[str, Any]:
-    return {field: value for field, value in record.items() if field in allowed_fields}
+def clear_team_related_records(session: Session, league_id: int) -> int:
+    cleared_team_records = 0
+    models_in_fk_safe_order: List[Type[SQLModel]] = [PlayerStats, Standing, Schedule, Player, Team]
+    for model in models_in_fk_safe_order:
+        cleared = clear_league_records(session, model, league_id)
+        if model is Team:
+            cleared_team_records = cleared
+    return cleared_team_records
 
 # ----------- ROUTES -----------
 
@@ -253,21 +320,13 @@ def create_league(
 def ingest_teams(
     league_id: int,
     key: str = Query(...),
-    teams: List[Dict[str, Any]] = Body(...),
+    teams: List[TeamIn] = Body(...),
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
-    clear_league_records(session, PlayerStats, league_id)
-    clear_league_records(session, Standing, league_id)
-    clear_league_records(session, Schedule, league_id)
-    clear_league_records(session, Player, league_id)
-    cleared = clear_league_records(session, Team, league_id)
-    allowed_fields = {
-        "id", "team_name", "abbreviation", "division", "overall_rating",
-        "wins", "losses", "ties", "city_name",
-    }
+    cleared = clear_team_related_records(session, league_id)
     for team_data in teams:
-        payload = filter_payload(team_data, allowed_fields)
+        payload = team_data.model_dump(exclude_unset=True)
         session.add(Team(league_id=league_id, **payload))
     session.commit()
     return {"success": True, "cleared": cleared, "inserted": len(teams)}
@@ -276,18 +335,14 @@ def ingest_teams(
 def ingest_rosters(
     league_id: int,
     key: str = Query(...),
-    players: List[Dict[str, Any]] = Body(...),
+    players: List[PlayerIn] = Body(...),
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
     clear_league_records(session, PlayerStats, league_id)
     cleared = clear_league_records(session, Player, league_id)
-    allowed_fields = {
-        "id", "team_id", "first_name", "last_name", "position", "overall_rating",
-        "age", "jersey_number", "dev_trait", "contract_years", "contract_salary",
-    }
     for player_data in players:
-        payload = filter_payload(player_data, allowed_fields)
+        payload = player_data.model_dump(exclude_unset=True)
         session.add(Player(league_id=league_id, **payload))
     session.commit()
     return {"success": True, "cleared": cleared, "inserted": len(players)}
@@ -296,14 +351,13 @@ def ingest_rosters(
 def ingest_standings(
     league_id: int,
     key: str = Query(...),
-    standings: List[Dict[str, Any]] = Body(...),
+    standings: List[StandingIn] = Body(...),
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
     cleared = clear_league_records(session, Standing, league_id)
-    allowed_fields = {"id", "team_id", "wins", "losses", "ties", "division_name", "seed"}
     for standing_data in standings:
-        payload = filter_payload(standing_data, allowed_fields)
+        payload = standing_data.model_dump(exclude_unset=True)
         session.add(Standing(league_id=league_id, **payload))
     session.commit()
     return {"success": True, "cleared": cleared, "inserted": len(standings)}
@@ -312,17 +366,13 @@ def ingest_standings(
 def ingest_schedules(
     league_id: int,
     key: str = Query(...),
-    schedules: List[Dict[str, Any]] = Body(...),
+    schedules: List[ScheduleIn] = Body(...),
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
     cleared = clear_league_records(session, Schedule, league_id)
-    allowed_fields = {
-        "id", "week_number", "season_number", "home_team_id", "away_team_id",
-        "home_score", "away_score", "is_complete",
-    }
     for schedule_data in schedules:
-        payload = filter_payload(schedule_data, allowed_fields)
+        payload = schedule_data.model_dump(exclude_unset=True)
         session.add(Schedule(league_id=league_id, **payload))
     session.commit()
     return {"success": True, "cleared": cleared, "inserted": len(schedules)}
@@ -331,14 +381,13 @@ def ingest_schedules(
 def ingest_stats(
     league_id: int,
     key: str = Query(...),
-    stats: List[Dict[str, Any]] = Body(...),
+    stats: List[PlayerStatsIn] = Body(...),
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
     week_season_pairs: Set[Tuple[int, int]] = set()
     for stat_data in stats:
-        if "week_number" in stat_data and "season_number" in stat_data:
-            week_season_pairs.add((stat_data["week_number"], stat_data["season_number"]))
+        week_season_pairs.add((stat_data.week_number, stat_data.season_number))
 
     cleared = 0
     for week_number, season_number in week_season_pairs:
@@ -353,14 +402,8 @@ def ingest_stats(
         for record in records:
             session.delete(record)
 
-    allowed_fields = {
-        "id", "player_id", "week_number", "season_number", "pass_yards",
-        "pass_tds", "interceptions", "rush_yards", "rush_tds", "rec_yards",
-        "rec_tds", "receptions", "tackles", "sacks", "fumbles_forced",
-        "defensive_ints",
-    }
     for stat_data in stats:
-        payload = filter_payload(stat_data, allowed_fields)
+        payload = stat_data.model_dump(exclude_unset=True)
         session.add(PlayerStats(league_id=league_id, **payload))
     session.commit()
     return {"success": True, "cleared": cleared, "inserted": len(stats)}

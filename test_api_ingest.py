@@ -20,6 +20,11 @@ class ApiIngestTests(unittest.TestCase):
     def setUpClass(cls):
         cls.client = TestClient(main.app)
 
+    @classmethod
+    def tearDownClass(cls):
+        if os.path.exists(DB_FILE.name):
+            os.unlink(DB_FILE.name)
+
     def setUp(self):
         with Session(main.engine) as session:
             for model in [main.PlayerStats, main.Standing, main.Schedule, main.Player, main.Team, main.League, main.User]:
