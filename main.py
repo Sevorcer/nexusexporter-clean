@@ -664,6 +664,33 @@ def create_league(
     request.session["flash_msg"] = f"League '{league_name}' created!"
     return RedirectResponse("/", status_code=303)
 
+
+@app.post("/set_madden_id")
+def set_madden_id(
+    request: Request,
+    league_id: int = Form(...),
+    madden_league_id: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    user = get_current_user(request, session)
+    if not user:
+        request.session["flash_error"] = "Please log in to update Madden league IDs."
+        return RedirectResponse("/login", status_code=303)
+
+    league = session.get(League, league_id)
+    if league is None:
+        request.session["flash_error"] = "League not found."
+        return RedirectResponse("/", status_code=303)
+    if league.user_id != user.id:
+        request.session["flash_error"] = "You can only update your own leagues."
+        return RedirectResponse("/", status_code=303)
+
+    league.madden_league_id = madden_league_id.strip() or None
+    session.add(league)
+    session.commit()
+    request.session["flash_msg"] = f"Madden league ID saved for '{league.name}'."
+    return RedirectResponse("/", status_code=303)
+
 @app.post("/api/{league_id}/teams")
 def ingest_teams(
     league_id: int,

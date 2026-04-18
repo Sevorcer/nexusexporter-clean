@@ -6,6 +6,7 @@
 <body>
     <h1>{{ league.name }}</h1>
     <p>League ID: {{ league.id }}</p>
+    <p>Madden League ID: {{ league.madden_league_id or "Not set" }}</p>
     <p>Teams: {{ teams_count }} | Players: {{ players_count }}</p>
     <ul>
         <li><a href="/league/{{ league.id }}/standings">Standings</a></li>

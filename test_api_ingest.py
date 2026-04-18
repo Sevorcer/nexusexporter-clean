@@ -32,14 +32,28 @@ class ApiIngestTests(unittest.TestCase):
                     session.delete(row)
             session.commit()
 
-    def create_league(self, league_id: int = 1, api_key: str = "valid-key", madden_league_id: str | None = None):
+    def create_user(self, discord_id: str, username: str) -> int:
+        with Session(main.engine) as session:
+            user = main.User(discord_id=discord_id, username=username)
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            return user.id
+
+    def create_league(
+        self,
+        league_id: int = 1,
+        api_key: str = "valid-key",
+        madden_league_id: str | None = None,
+        user_id: int | None = None,
+    ):
         with Session(main.engine) as session:
             league = main.League(
                 id=league_id,
                 name="Test League",
                 api_key=api_key,
                 madden_league_id=madden_league_id,
-                user_id=None,
+                user_id=user_id,
             )
             session.add(league)
             session.commit()
@@ -465,6 +479,55 @@ class ApiIngestTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["inserted"], 1)
+
+    def test_set_madden_id_updates_owned_league(self):
+        user_id = self.create_user("owner-1", "owner")
+        self.create_league(user_id=user_id)
+        original_get_current_user = main.get_current_user
+        main.get_current_user = lambda request, session: main.User(id=user_id, discord_id="owner-1", username="owner")
+        try:
+            response = self.client.post(
+                "/set_madden_id",
+                data={"league_id": "1", "madden_league_id": "22006264"},
+                follow_redirects=False,
+            )
+        finally:
+            main.get_current_user = original_get_current_user
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        with Session(main.engine) as session:
+            league = session.get(main.League, 1)
+            self.assertIsNotNone(league)
+            self.assertEqual(league.madden_league_id, "22006264")
+
+    def test_set_madden_id_rejects_non_owner(self):
+        owner_id = self.create_user("owner-2", "owner")
+        other_id = self.create_user("other-2", "other")
+        self.create_league(user_id=owner_id)
+        original_get_current_user = main.get_current_user
+        main.get_current_user = lambda request, session: main.User(id=other_id, discord_id="other-2", username="other")
+        try:
+            response = self.client.post(
+                "/set_madden_id",
+                data={"league_id": "1", "madden_league_id": "22006264"},
+                follow_redirects=False,
+            )
+        finally:
+            main.get_current_user = original_get_current_user
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/")
+
+        with Session(main.engine) as session:
+            league = session.get(main.League, 1)
+            self.assertIsNotNone(league)
+            self.assertIsNone(league.madden_league_id)
+
+    def test_league_detail_page_shows_madden_league_id(self):
+        self.create_league(madden_league_id="22006264")
+        response = self.client.get("/league/1")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Madden League ID: 22006264", response.text)
 
 
 if __name__ == "__main__":
