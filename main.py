@@ -495,12 +495,12 @@ def ingest_companion_payload(
     if payload_type in {"passing", "rushing", "defense"}:
         stats = _transform_madden_stats(rows, payload_type)
         return ingest_companion_stats(league.id, stats, session)
-    if payload_type == "teams":
-        teams = _transform_madden_teams(rows)
-        return ingest_teams(league.id, league.api_key, teams, session)
-
-    if normalized_path in {"teams", "leagueteams"}:
-        teams = _transform_madden_teams(rows) if normalized_path == "leagueteams" else [TeamIn.model_validate(row) for row in rows]
+    if payload_type == "teams" or normalized_path in {"teams", "leagueteams"}:
+        teams = (
+            _transform_madden_teams(rows)
+            if payload_type == "teams" or normalized_path == "leagueteams"
+            else [TeamIn.model_validate(row) for row in rows]
+        )
         return ingest_teams(league.id, league.api_key, teams, session)
     if normalized_path == "standings":
         standings = [StandingIn.model_validate(row) for row in rows]
@@ -835,18 +835,18 @@ async def ingest_madden_companion(
         except json.JSONDecodeError:
             parsed_query = parse_qs(raw_body.decode("utf-8", errors="ignore"), keep_blank_values=True)
             if parsed_query:
-                normalized_form: Dict[str, Any] = {}
+                form_data: Dict[str, Any] = {}
                 for key, values in parsed_query.items():
-                    normalized_form[key] = values if len(values) > 1 else values[0]
+                    form_data[key] = values if len(values) > 1 else values[0]
                 for candidate_key in ("payload", "data", "body", "json"):
-                    candidate = normalized_form.get(candidate_key)
+                    candidate = form_data.get(candidate_key)
                     if isinstance(candidate, str):
                         try:
                             payload = json.loads(candidate)
                             return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
                         except json.JSONDecodeError:
                             continue
-                return ingest_companion_payload(platform, madden_league_id, companion_path, normalized_form, session)
+                return ingest_companion_payload(platform, madden_league_id, companion_path, form_data, session)
 
     form = await request.form()
     if form:
