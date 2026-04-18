@@ -275,6 +275,7 @@ def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings",
                 ("playerPassingStatInfoList", "passing"),
                 ("playerRushingStatInfoList", "rushing"),
                 ("playerDefensiveStatInfoList", "defense"),
+                # Companion payloads have been seen with both singular/plural variants.
                 ("leagueTeamInfoList", "teams"),
                 ("leagueTeamsInfoList", "teams"),
             ]
@@ -496,12 +497,10 @@ def ingest_companion_payload(
     if payload_type in {"passing", "rushing", "defense"}:
         stats = _transform_madden_stats(rows, payload_type)
         return ingest_companion_stats(league.id, stats, session)
-    if payload_type == "teams" or normalized_path in {"teams", "leagueteams"}:
-        teams = (
-            _transform_madden_teams(rows)
-            if payload_type == "teams" or normalized_path == "leagueteams"
-            else [TeamIn.model_validate(row) for row in rows]
-        )
+    should_ingest_teams = payload_type == "teams" or normalized_path in {"teams", "leagueteams"}
+    if should_ingest_teams:
+        should_transform_teams = payload_type == "teams" or normalized_path == "leagueteams"
+        teams = _transform_madden_teams(rows) if should_transform_teams else [TeamIn.model_validate(row) for row in rows]
         return ingest_teams(league.id, league.api_key, teams, session)
     if normalized_path == "standings":
         standings = [StandingIn.model_validate(row) for row in rows]
@@ -839,11 +838,11 @@ async def ingest_madden_companion(
             except UnicodeDecodeError:
                 parsed_query = {}
             if parsed_query:
-                form_data: Dict[str, Any] = {}
+                parsed_form: Dict[str, Any] = {}
                 for key, values in parsed_query.items():
-                    form_data[key] = values
+                    parsed_form[key] = values
                 for candidate_key in COMPANION_JSON_FORM_KEYS:
-                    candidate = form_data.get(candidate_key)
+                    candidate = parsed_form.get(candidate_key)
                     if isinstance(candidate, list) and len(candidate) == 1:
                         candidate = candidate[0]
                     if isinstance(candidate, str):
@@ -852,7 +851,7 @@ async def ingest_madden_companion(
                             return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
                         except json.JSONDecodeError:
                             continue
-                return ingest_companion_payload(platform, madden_league_id, companion_path, form_data, session)
+                return ingest_companion_payload(platform, madden_league_id, companion_path, parsed_form, session)
 
     form = await request.form()
     if form:
