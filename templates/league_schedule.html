@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ league.name }} - Schedule</title>
+</head>
+<body>
+    <h1>{{ league.name }} Schedule</h1>
+    <a href="/league/{{ league.id }}">Back to League</a>
+    {% for week_number, games in week_groups %}
+        <h2>Week {{ week_number }}</h2>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Away</th>
+                    <th>Home</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for game in games %}
+                    {% set away_team = team_map.get(game.away_team_id) %}
+                    {% set home_team = team_map.get(game.home_team_id) %}
+                    <tr>
+                        <td>{{ away_team.team_name if away_team else "Unknown Team" }}</td>
+                        <td>{{ home_team.team_name if home_team else "Unknown Team" }}</td>
+                        <td>
+                            {% if game.is_complete %}
+                                {{ game.away_score or 0 }} - {{ game.home_score or 0 }}
+                            {% else %}
+                                Not played
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+</body>
+</html>

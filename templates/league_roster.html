@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ league.name }} - Roster</title>
+</head>
+<body>
+    <h1>{{ league.name }} Rosters</h1>
+    <a href="/league/{{ league.id }}">Back to League</a>
+    {% for team, players in team_players %}
+        <h2>{{ team.team_name or "Unknown Team" }}</h2>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Overall</th>
+                    <th>Age</th>
+                    <th>Dev Trait</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in players %}
+                    <tr>
+                        <td><a href="/league/{{ league.id }}/player/{{ player.id }}">{{ player.first_name or "" }} {{ player.last_name or "" }}</a></td>
+                        <td>{{ player.position or "" }}</td>
+                        <td>{{ player.overall_rating or "" }}</td>
+                        <td>{{ player.age or "" }}</td>
+                        <td>{{ player.dev_trait or "" }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+</body>
+</html>
