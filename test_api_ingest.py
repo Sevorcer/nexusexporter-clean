@@ -505,6 +505,62 @@ class ApiIngestTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["inserted"], 1)
 
+    def test_companion_route_422_returns_actionable_parse_detail(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        raw_body = b"\xff\xfe\xfd"
+        response = self.client.post(
+            "/xbsx/22006264/standings",
+            content=raw_body,
+            headers={"Content-Type": "application/octet-stream"},
+        )
+        self.assertEqual(response.status_code, 422)
+        detail = response.json()["detail"]
+        self.assertEqual(detail["error"], "Unable to parse companion payload")
+        self.assertEqual(detail["content_type"], "application/octet-stream")
+        self.assertTrue(detail["body_preview"])
+        self.assertEqual(detail["raw_body_bytes"], len(raw_body))
+        self.assertIn("Expected JSON body or form-encoded data", detail["hint"])
+
+    def test_companion_route_422_preview_is_truncated(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        oversized_body = b"\xff" * (main.COMPANION_DEBUG_PREVIEW_LIMIT + 25)
+        response = self.client.post(
+            "/xbsx/22006264/standings",
+            content=oversized_body,
+            headers={"Content-Type": "application/octet-stream"},
+        )
+        self.assertEqual(response.status_code, 422)
+        detail = response.json()["detail"]
+        self.assertEqual(detail["raw_body_bytes"], len(oversized_body))
+        preview_prefix = detail["body_preview"].split("... (truncated", 1)[0]
+        self.assertEqual(len(preview_prefix), main.COMPANION_DEBUG_PREVIEW_LIMIT)
+        self.assertIn("... (truncated", detail["body_preview"])
+        self.assertIn(f"total_bytes={len(oversized_body)}", detail["body_preview"])
+
+    def test_companion_debug_logging_is_opt_in(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        with patch.object(main, "COMPANION_DEBUG_LOG_ENABLED", False), patch.object(main.companion_logger, "info") as mock_info:
+            response = self.client.post(
+                "/xbsx/22006264/standings",
+                json={"content": {"teamStandingInfoList": [{"teamId": 10, "totalWins": 8, "totalLosses": 4, "totalTies": 0}]}},
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(mock_info.called)
+
+    def test_companion_debug_logging_reports_parse_failures(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        with patch.object(main, "COMPANION_DEBUG_LOG_ENABLED", True), patch.object(main.companion_logger, "info") as mock_info:
+            response = self.client.post(
+                "/xbsx/22006264/standings",
+                content=b"\xff\xfe\xfd",
+                headers={"Content-Type": "application/octet-stream"},
+            )
+            self.assertEqual(response.status_code, 422)
+            messages = [call.args[0] for call in mock_info.call_args_list]
+            self.assertTrue(any("Companion ingest request" in message for message in messages))
+            self.assertTrue(any("Companion ingest parse failed for json:" in message for message in messages))
+            self.assertTrue(any("no parseable JSON, querystring, or form payload found" in message for message in messages))
+
     def test_companion_leagueteams_transforms_and_ingests_teams(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
         response = self.client.post(
