@@ -167,6 +167,9 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(len(week_2), 1)
             self.assertEqual(week_2[0].pass_yards, 350)
 
+    def test_playerstats_player_id_has_no_foreign_key(self):
+        self.assertEqual(len(main.PlayerStats.__table__.c.player_id.foreign_keys), 0)
+
     def test_get_endpoints_require_valid_api_key(self):
         self.create_league(api_key="valid-key")
         response = self.client.get("/api/1/teams?key=bad-key")
@@ -482,6 +485,60 @@ class ApiIngestTests(unittest.TestCase):
             player = session.get(main.Player, 100)
             self.assertIsNotNone(player)
             self.assertEqual(player.dev_trait, "2")
+
+    def test_companion_team_roster_replaces_only_matching_team_players(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        self.client.post(
+            "/api/1/rosters?key=companion-key",
+            json=[
+                {"id": 100, "team_id": 10, "first_name": "Old", "last_name": "Lion"},
+                {"id": 200, "team_id": 20, "first_name": "Bear", "last_name": "Player"},
+                {"id": 300, "team_id": None, "first_name": "Free", "last_name": "Agent"},
+            ],
+        )
+
+        roster_response = self.client.post(
+            "/xbsx/22006264/team/10/roster",
+            json={"rosterInfoList": [{"rosterId": 101, "teamId": 10, "firstName": "New", "lastName": "Lion"}]},
+        )
+        self.assertEqual(roster_response.status_code, 200)
+        self.assertEqual(roster_response.json()["cleared"], 1)
+        self.assertEqual(roster_response.json()["inserted"], 1)
+
+        with Session(main.engine) as session:
+            players = session.exec(select(main.Player).where(main.Player.league_id == 1)).all()
+            by_id = {player.id: player for player in players}
+            self.assertEqual(len(players), 3)
+            self.assertNotIn(100, by_id)
+            self.assertEqual(by_id[101].team_id, 10)
+            self.assertEqual(by_id[200].team_id, 20)
+            self.assertIsNone(by_id[300].team_id)
+
+    def test_companion_free_agents_roster_replaces_only_free_agents(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        self.client.post(
+            "/api/1/rosters?key=companion-key",
+            json=[
+                {"id": 100, "team_id": 10, "first_name": "Rostered", "last_name": "Player"},
+                {"id": 300, "team_id": None, "first_name": "Old", "last_name": "FreeAgentA"},
+                {"id": 301, "team_id": None, "first_name": "Old", "last_name": "FreeAgentB"},
+            ],
+        )
+
+        roster_response = self.client.post(
+            "/xbsx/22006264/freeagents/roster",
+            json={"rosterInfoList": [{"rosterId": 302, "teamId": None, "firstName": "New", "lastName": "FreeAgent"}]},
+        )
+        self.assertEqual(roster_response.status_code, 200)
+        self.assertEqual(roster_response.json()["cleared"], 2)
+        self.assertEqual(roster_response.json()["inserted"], 1)
+
+        with Session(main.engine) as session:
+            players = session.exec(select(main.Player).where(main.Player.league_id == 1)).all()
+            by_id = {player.id: player for player in players}
+            self.assertEqual(len(players), 2)
+            self.assertEqual(by_id[100].team_id, 10)
+            self.assertIsNone(by_id[302].team_id)
 
     def test_companion_payload_type_detection_prefers_content_keys_over_url(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")

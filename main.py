@@ -109,7 +109,7 @@ class Standing(SQLModel, table=True):
 class PlayerStats(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     league_id: int = Field(foreign_key="league.id")
-    player_id: Optional[int] = Field(default=None, foreign_key="player.id")
+    player_id: Optional[int] = Field(default=None)
     week_number: int
     season_number: int
     pass_yards: Optional[int] = None
@@ -188,6 +188,11 @@ class PlayerStatsIn(SQLModel):
 
 def create_db():
     SQLModel.metadata.create_all(engine)
+    if engine.dialect.name == "postgresql":
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "ALTER TABLE playerstats DROP CONSTRAINT IF EXISTS playerstats_player_id_fkey"
+            )
 create_db()
 
 # ----------- DEPENDENCIES -----------
@@ -494,6 +499,15 @@ def ingest_companion_payload(
 
     league = get_league_by_madden_id_or_404(madden_league_id, session)
     normalized_path = companion_path.strip("/")
+    is_free_agents_roster_path = normalized_path == "freeagents/roster"
+    is_team_roster_path = normalized_path.startswith("team/") and normalized_path.endswith("/roster")
+    team_roster_id_scope: Optional[int] = None
+    if is_team_roster_path:
+        path_parts = normalized_path.split("/")
+        if len(path_parts) == 3:
+            team_roster_id_scope = _to_int(path_parts[1])
+        if team_roster_id_scope is None:
+            raise HTTPException(status_code=422, detail="Invalid team roster path")
 
     payload_type, rows = _extract_companion_rows(payload)
 
@@ -503,7 +517,14 @@ def ingest_companion_payload(
         return ingest_standings(league.id, league.api_key, standings, session)
     if payload_type == "roster":
         players = _transform_madden_roster(rows)
-        return ingest_rosters(league.id, league.api_key, players, session)
+        return ingest_rosters(
+            league.id,
+            league.api_key,
+            players,
+            session,
+            team_id_scope=team_roster_id_scope,
+            free_agents_only=is_free_agents_roster_path,
+        )
     if payload_type == "schedule":
         schedules = _transform_madden_schedule(rows)
         return ingest_schedules(league.id, league.api_key, schedules, session)
@@ -521,11 +542,16 @@ def ingest_companion_payload(
     if normalized_path in {"schedules", "schedule"}:
         schedules = [ScheduleIn.model_validate(row) for row in rows]
         return ingest_schedules(league.id, league.api_key, schedules, session)
-    if normalized_path == "freeagents/roster" or (
-        normalized_path.startswith("team/") and normalized_path.endswith("/roster")
-    ):
+    if is_free_agents_roster_path or is_team_roster_path:
         players = [PlayerIn.model_validate(row) for row in rows]
-        return ingest_rosters(league.id, league.api_key, players, session)
+        return ingest_rosters(
+            league.id,
+            league.api_key,
+            players,
+            session,
+            team_id_scope=team_roster_id_scope,
+            free_agents_only=is_free_agents_roster_path,
+        )
 
     segments = normalized_path.split("/")
     if len(segments) == 4 and segments[0] == "week":
@@ -761,12 +787,35 @@ def ingest_rosters(
     key: str = Query(...),
     players: List[PlayerIn] = Body(...),
     session: Session = Depends(get_session),
+    team_id_scope: Optional[int] = None,
+    free_agents_only: bool = False,
 ):
     validate_api_key(league_id, key, session)
-    clear_league_records(session, PlayerStats, league_id)
-    cleared = clear_league_records(session, Player, league_id)
+    if free_agents_only:
+        result = session.exec(
+            delete(Player).where(
+                Player.league_id == league_id,
+                Player.team_id.is_(None),
+            )
+        )
+        cleared = result.rowcount or 0
+    elif team_id_scope is not None:
+        result = session.exec(
+            delete(Player).where(
+                Player.league_id == league_id,
+                Player.team_id == team_id_scope,
+            )
+        )
+        cleared = result.rowcount or 0
+    else:
+        clear_league_records(session, PlayerStats, league_id)
+        cleared = clear_league_records(session, Player, league_id)
     for player_data in players:
         payload = player_data.model_dump(exclude_unset=True)
+        if free_agents_only:
+            payload["team_id"] = None
+        elif team_id_scope is not None:
+            payload["team_id"] = team_id_scope
         session.add(Player(league_id=league_id, **payload))
     session.commit()
     return {"success": True, "cleared": cleared, "inserted": len(players)}
