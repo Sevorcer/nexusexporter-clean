@@ -726,6 +726,22 @@ class ApiIngestTests(unittest.TestCase):
         self.assertTrue(response.json()["success"])
         self.assertFalse(response.json()["tracked"])
 
+    def test_companion_untracked_root_infolists_return_not_tracked_ok(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        cases = [
+            ("/xbsx/22006264/week/reg/3/kicking", "playerKickingStatInfoList"),
+            ("/xbsx/22006264/week/reg/3/punting", "playerPuntingStatInfoList"),
+            ("/xbsx/22006264/week/reg/3/team", "teamStatInfoList"),
+        ]
+        for path, key in cases:
+            with self.subTest(path=path, key=key):
+                response = self.client.post(path, json={key: [{"playerId": 1}]})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    response.json(),
+                    {"status": "ok", "tracked": False, "message": "Stat type not currently tracked"},
+                )
+
     def test_set_madden_id_updates_owned_league(self):
         user_id = self.create_user("owner-1", "owner")
         league_id = self.create_league(user_id=user_id)
