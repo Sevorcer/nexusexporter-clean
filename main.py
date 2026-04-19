@@ -1,6 +1,7 @@
 import os
 import json
 import secrets
+import logging
 from typing import Optional, List, Any, Dict, Set, Tuple, Type, DefaultDict, Literal
 from collections import defaultdict
 from urllib.parse import urlencode, parse_qs
@@ -21,6 +22,10 @@ DISCORD_CLIENT_SECRET = os.environ["DISCORD_CLIENT_SECRET"]
 DISCORD_REDIRECT_URI = os.environ["DISCORD_REDIRECT_URI"]
 MAX_MADDEN_LEAGUE_ID_LENGTH = 64
 COMPANION_JSON_FORM_KEYS = ("payload", "data", "body", "json")
+COMPANION_DEBUG_PREVIEW_LIMIT = 1000
+COMPANION_DEBUG_LOG_ENABLED = os.environ.get("COMPANION_DEBUG_LOG", "").strip().lower() in {"1", "true"}
+
+companion_logger = logging.getLogger("companion_ingest")
 
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
@@ -827,15 +832,49 @@ async def ingest_madden_companion(
     companion_path: str,
     session: Session = Depends(get_session),
 ):
+    def _body_preview(raw: bytes) -> str:
+        decoded = raw.decode("utf-8", errors="replace")
+        if len(decoded) <= COMPANION_DEBUG_PREVIEW_LIMIT:
+            return decoded
+        return (
+            f"{decoded[:COMPANION_DEBUG_PREVIEW_LIMIT]}"
+            f"... (truncated, total_chars={len(decoded)}, total_bytes={len(raw)})"
+        )
+
+    def _log_debug(message: str, *args: Any):
+        if COMPANION_DEBUG_LOG_ENABLED:
+            companion_logger.info(message, *args)
+
+    content_type = request.headers.get("content-type")
+    content_length = request.headers.get("content-length")
     raw_body = await request.body()
+    body_preview = _body_preview(raw_body)
+    _log_debug(
+        "Companion ingest request method=%s path=%s content_type=%s content_length=%s raw_body_bytes=%s body_preview=%r",
+        request.method,
+        request.url.path,
+        content_type,
+        content_length,
+        len(raw_body),
+        body_preview,
+    )
     if raw_body:
         try:
             payload = json.loads(raw_body)
+            _log_debug("Companion ingest parse_path=json")
             return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            _log_debug(
+                "Companion ingest parse failed for json: %s (expected JSON body, falling back to querystring/form parsing)",
+                str(exc),
+            )
             try:
                 parsed_query = parse_qs(raw_body.decode("utf-8"), keep_blank_values=True)
-            except UnicodeDecodeError:
+            except UnicodeDecodeError as decode_exc:
+                _log_debug(
+                    "Companion ingest parse failed for querystring decode: %s (expected UTF-8 querystring/form body)",
+                    str(decode_exc),
+                )
                 parsed_query = {}
             if parsed_query:
                 parsed_form: Dict[str, Any] = {}
@@ -846,9 +885,16 @@ async def ingest_madden_companion(
                     if isinstance(candidate, str):
                         try:
                             payload = json.loads(candidate)
+                            _log_debug("Companion ingest parse_path=querystring_embedded_json key=%s", candidate_key)
                             return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
-                        except json.JSONDecodeError:
+                        except json.JSONDecodeError as exc:
+                            _log_debug(
+                                "Companion ingest parse failed for querystring key '%s': %s (expected JSON string in known form field)",
+                                candidate_key,
+                                str(exc),
+                            )
                             continue
+                _log_debug("Companion ingest parse_path=querystring")
                 return ingest_companion_payload(platform, madden_league_id, companion_path, parsed_form, session)
 
     form = await request.form()
@@ -867,14 +913,28 @@ async def ingest_madden_companion(
             if isinstance(candidate, str):
                 try:
                     payload = json.loads(candidate)
+                    _log_debug("Companion ingest parse_path=form_embedded_json key=%s", candidate_key)
                     return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as exc:
+                    _log_debug(
+                        "Companion ingest parse failed for form key '%s': %s (expected JSON string in known form field)",
+                        candidate_key,
+                        str(exc),
+                    )
                     continue
+        _log_debug("Companion ingest parse_path=form")
         return ingest_companion_payload(platform, madden_league_id, companion_path, normalized_form, session)
 
+    _log_debug("Companion ingest parse failed for request body: no parseable JSON, querystring, or form payload found")
     raise HTTPException(
         status_code=422,
-        detail="Unable to parse companion payload. Expected JSON body or form-encoded data.",
+        detail={
+            "error": "Unable to parse companion payload",
+            "content_type": content_type,
+            "body_preview": body_preview,
+            "raw_body_bytes": len(raw_body),
+            "hint": "Expected JSON body or form-encoded data (possibly with JSON in payload/data/body/json field).",
+        },
     )
 
 
