@@ -532,8 +532,10 @@ class ApiIngestTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         detail = response.json()["detail"]
         self.assertEqual(detail["raw_body_bytes"], len(oversized_body))
+        preview_prefix = detail["body_preview"].split("... (truncated", 1)[0]
+        self.assertEqual(len(preview_prefix), main.COMPANION_DEBUG_PREVIEW_LIMIT)
         self.assertIn("... (truncated", detail["body_preview"])
-        self.assertLessEqual(len(detail["body_preview"]), main.COMPANION_DEBUG_PREVIEW_LIMIT + 100)
+        self.assertIn(f"total_bytes={len(oversized_body)}", detail["body_preview"])
 
     def test_companion_debug_logging_is_opt_in(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
@@ -556,7 +558,7 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(response.status_code, 422)
             messages = [call.args[0] for call in mock_info.call_args_list]
             self.assertTrue(any("Companion ingest request" in message for message in messages))
-            self.assertTrue(any("parse failed for json" in message for message in messages))
+            self.assertTrue(any("Companion ingest parse failed for json:" in message for message in messages))
             self.assertTrue(any("no parseable JSON, querystring, or form payload found" in message for message in messages))
 
     def test_companion_leagueteams_transforms_and_ingests_teams(self):

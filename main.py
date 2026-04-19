@@ -838,40 +838,40 @@ async def ingest_madden_companion(
             return decoded
         return (
             f"{decoded[:COMPANION_DEBUG_PREVIEW_LIMIT]}"
-            f"... (truncated, total_chars={len(decoded)}, total_bytes={len(raw)})"
+            f"... (truncated to {COMPANION_DEBUG_PREVIEW_LIMIT} chars, total_decoded_chars={len(decoded)}, total_bytes={len(raw)})"
         )
 
-    def _log_debug(message: str, *args: Any):
+    def _log_info(message: str, *args: Any):
         if COMPANION_DEBUG_LOG_ENABLED:
             companion_logger.info(message, *args)
 
-    content_type = request.headers.get("content-type")
-    content_length = request.headers.get("content-length")
+    content_type_header = request.headers.get("content-type")
+    content_length_header = request.headers.get("content-length")
     raw_body = await request.body()
     body_preview = _body_preview(raw_body)
-    _log_debug(
+    _log_info(
         "Companion ingest request method=%s path=%s content_type=%s content_length=%s raw_body_bytes=%s body_preview=%r",
         request.method,
         request.url.path,
-        content_type,
-        content_length,
+        content_type_header,
+        content_length_header,
         len(raw_body),
         body_preview,
     )
     if raw_body:
         try:
             payload = json.loads(raw_body)
-            _log_debug("Companion ingest parse_path=json")
+            _log_info("Companion ingest parse_path=json")
             return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            _log_debug(
+            _log_info(
                 "Companion ingest parse failed for json: %s (expected JSON body, falling back to querystring/form parsing)",
                 str(exc),
             )
             try:
                 parsed_query = parse_qs(raw_body.decode("utf-8"), keep_blank_values=True)
             except UnicodeDecodeError as decode_exc:
-                _log_debug(
+                _log_info(
                     "Companion ingest parse failed for querystring decode: %s (expected UTF-8 querystring/form body)",
                     str(decode_exc),
                 )
@@ -885,16 +885,16 @@ async def ingest_madden_companion(
                     if isinstance(candidate, str):
                         try:
                             payload = json.loads(candidate)
-                            _log_debug("Companion ingest parse_path=querystring_embedded_json key=%s", candidate_key)
+                            _log_info("Companion ingest parse_path=querystring_embedded_json candidate_key=%s", candidate_key)
                             return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
                         except json.JSONDecodeError as exc:
-                            _log_debug(
+                            _log_info(
                                 "Companion ingest parse failed for querystring key '%s': %s (expected JSON string in known form field)",
                                 candidate_key,
                                 str(exc),
                             )
                             continue
-                _log_debug("Companion ingest parse_path=querystring")
+                _log_info("Companion ingest parse_path=querystring")
                 return ingest_companion_payload(platform, madden_league_id, companion_path, parsed_form, session)
 
     form = await request.form()
@@ -913,24 +913,24 @@ async def ingest_madden_companion(
             if isinstance(candidate, str):
                 try:
                     payload = json.loads(candidate)
-                    _log_debug("Companion ingest parse_path=form_embedded_json key=%s", candidate_key)
+                    _log_info("Companion ingest parse_path=form_embedded_json candidate_key=%s", candidate_key)
                     return ingest_companion_payload(platform, madden_league_id, companion_path, payload, session)
                 except json.JSONDecodeError as exc:
-                    _log_debug(
+                    _log_info(
                         "Companion ingest parse failed for form key '%s': %s (expected JSON string in known form field)",
                         candidate_key,
                         str(exc),
                     )
                     continue
-        _log_debug("Companion ingest parse_path=form")
+        _log_info("Companion ingest parse_path=form")
         return ingest_companion_payload(platform, madden_league_id, companion_path, normalized_form, session)
 
-    _log_debug("Companion ingest parse failed for request body: no parseable JSON, querystring, or form payload found")
+    _log_info("Companion ingest parse failed for request body: no parseable JSON, querystring, or form payload found")
     raise HTTPException(
         status_code=422,
         detail={
             "error": "Unable to parse companion payload",
-            "content_type": content_type,
+            "content_type": content_type_header,
             "body_preview": body_preview,
             "raw_body_bytes": len(raw_body),
             "hint": "Expected JSON body or form-encoded data (possibly with JSON in payload/data/body/json field).",
