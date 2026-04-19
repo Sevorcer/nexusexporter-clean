@@ -337,6 +337,8 @@ def _transform_madden_roster(rows: List[Dict[str, Any]]) -> List[PlayerIn]:
     for row in rows:
         signature_slots = _pick(row, "signatureSlotList")
         dev_trait = _pick(row, "devTraitLabel", "devTrait", "dev_trait")
+        if dev_trait is not None and not isinstance(dev_trait, str):
+            dev_trait = str(dev_trait)
         if dev_trait is None and isinstance(signature_slots, list):
             dev_trait = json.dumps(signature_slots)
         players.append(
