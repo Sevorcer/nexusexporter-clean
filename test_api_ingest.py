@@ -131,6 +131,22 @@ class ApiIngestTests(unittest.TestCase):
             names = sorted(f"{p.first_name} {p.last_name}" for p in players)
             self.assertEqual(names, ["Chris Jones", "Travis Kelce"])
 
+    def test_rosters_endpoint_does_not_clear_player_stats(self):
+        self.create_league(api_key="abc123")
+        with Session(main.engine) as session:
+            session.add(main.PlayerStats(league_id=1, player_id=1, week_number=1, season_number=1, pass_yards=321))
+            session.commit()
+
+        first_response = self.client.post("/api/1/rosters?key=abc123", json=[{"id": 1, "first_name": "Pat"}])
+        self.assertEqual(first_response.status_code, 200)
+        second_response = self.client.post("/api/1/rosters?key=abc123", json=[{"id": 2, "first_name": "Travis"}])
+        self.assertEqual(second_response.status_code, 200)
+
+        with Session(main.engine) as session:
+            stats = session.exec(select(main.PlayerStats).where(main.PlayerStats.league_id == 1)).all()
+            self.assertEqual(len(stats), 1)
+            self.assertEqual(stats[0].pass_yards, 321)
+
     def test_stats_endpoint_clears_only_matching_week_and_season(self):
         self.create_league(api_key="stats-key")
         with Session(main.engine) as session:

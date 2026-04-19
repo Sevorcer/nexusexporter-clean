@@ -829,7 +829,6 @@ def ingest_rosters(
         )
         cleared = result.rowcount or 0
     else:
-        clear_league_records(session, PlayerStats, league_id)
         cleared = clear_league_records(session, Player, league_id)
     for player_data in players:
         payload = player_data.model_dump(exclude_unset=True)
