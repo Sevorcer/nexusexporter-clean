@@ -589,6 +589,47 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(team.team_name, "Lions")
             self.assertEqual(team.overall_rating, 84)
 
+    def test_companion_route_accepts_root_level_standings_list(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        response = self.client.post(
+            "/xbsx/22006264/standings",
+            json={
+                "message": "",
+                "success": True,
+                "teamStandingInfoList": [
+                    {"teamId": 10, "teamName": "Lions", "divisionName": "NFC North", "totalWins": 9, "totalLosses": 3, "totalTies": 0}
+                ],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["inserted"], 1)
+
+    def test_companion_leagueteams_accepts_root_level_list(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        response = self.client.post(
+            "/xbsx/22006264/leagueteams",
+            json={
+                "leagueTeamInfoList": [
+                    {
+                        "teamId": 10,
+                        "teamName": "Lions",
+                        "divisionName": "NFC North",
+                        "teamOvr": 84,
+                        "totalWins": 9,
+                        "totalLosses": 2,
+                        "totalTies": 1,
+                    }
+                ]
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["inserted"], 1)
+        with Session(main.engine) as session:
+            team = session.get(main.Team, 10)
+            self.assertIsNotNone(team)
+            self.assertEqual(team.team_name, "Lions")
+            self.assertEqual(team.overall_rating, 84)
+
     def test_companion_untracked_weekly_stat_types_acknowledge_success(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
         response = self.client.post(
