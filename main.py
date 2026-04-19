@@ -272,21 +272,26 @@ def _to_float(value: Any) -> Optional[float]:
 
 def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams"]], List[Dict[str, Any]]]:
     if isinstance(payload, dict):
+        mapping: List[Tuple[str, Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams"]]] = [
+            ("teamStandingInfoList", "standings"),
+            ("rosterInfoList", "roster"),
+            ("gameScheduleInfoList", "schedule"),
+            ("playerPassingStatInfoList", "passing"),
+            ("playerRushingStatInfoList", "rushing"),
+            ("playerDefensiveStatInfoList", "defense"),
+            # Companion payloads have been seen with both singular and plural variants.
+            ("leagueTeamInfoList", "teams"),
+            ("leagueTeamsInfoList", "teams"),
+        ]
         content = payload.get("content")
+        payload_sources: List[Dict[str, Any]] = []
         if isinstance(content, dict):
-            mapping: List[Tuple[str, Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams"]]] = [
-                ("teamStandingInfoList", "standings"),
-                ("rosterInfoList", "roster"),
-                ("gameScheduleInfoList", "schedule"),
-                ("playerPassingStatInfoList", "passing"),
-                ("playerRushingStatInfoList", "rushing"),
-                ("playerDefensiveStatInfoList", "defense"),
-                # Companion payloads have been seen with both singular and plural variants.
-                ("leagueTeamInfoList", "teams"),
-                ("leagueTeamsInfoList", "teams"),
-            ]
+            payload_sources.append(content)
+        payload_sources.append(payload)
+
+        for source in payload_sources:
             for key, payload_type in mapping:
-                rows = content.get(key)
+                rows = source.get(key)
                 if isinstance(rows, list):
                     return payload_type, [row for row in rows if isinstance(row, dict)]
         raise HTTPException(status_code=422, detail="Invalid companion payload format")
