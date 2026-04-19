@@ -275,7 +275,7 @@ def _to_float(value: Any) -> Optional[float]:
         return None
 
 
-def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams"]], List[Dict[str, Any]]]:
+def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams", "untracked"]], List[Dict[str, Any]]]:
     if isinstance(payload, dict):
         mapping: List[Tuple[str, Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams"]]] = [
             ("teamStandingInfoList", "standings"),
@@ -299,6 +299,10 @@ def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings",
                 rows = source.get(key)
                 if isinstance(rows, list):
                     return payload_type, [row for row in rows if isinstance(row, dict)]
+        for source in payload_sources:
+            for key, rows in source.items():
+                if key.endswith("InfoList") and isinstance(rows, list):
+                    return "untracked", [row for row in rows if isinstance(row, dict)]
         raise HTTPException(status_code=422, detail="Invalid companion payload format")
 
     if isinstance(payload, list):
@@ -510,6 +514,8 @@ def ingest_companion_payload(
             raise HTTPException(status_code=422, detail="Invalid team roster path")
 
     payload_type, rows = _extract_companion_rows(payload)
+    if payload_type == "untracked":
+        return {"status": "ok", "tracked": False, "message": "Stat type not currently tracked"}
 
     if payload_type == "standings":
         standings, teams_from_standings = _transform_madden_standings(rows)
