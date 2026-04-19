@@ -454,6 +454,35 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(stats[0].defensive_ints, 2)
             self.assertEqual(stats[0].tackles, 5)
 
+    def test_companion_roster_route_coerces_integer_dev_trait(self):
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        roster_response = self.client.post(
+            "/xbsx/22006264/freeagents/roster",
+            json={
+                "content": {
+                    "rosterInfoList": [
+                        {
+                            "rosterId": 100,
+                            "teamId": 10,
+                            "firstName": "Jared",
+                            "lastName": "Goff",
+                            "position": "QB",
+                            "age": 30,
+                            "playerSchemeOvr": 85,
+                            "devTrait": 2,
+                        }
+                    ]
+                }
+            },
+        )
+        self.assertEqual(roster_response.status_code, 200)
+        self.assertEqual(roster_response.json()["inserted"], 1)
+
+        with Session(main.engine) as session:
+            player = session.get(main.Player, 100)
+            self.assertIsNotNone(player)
+            self.assertEqual(player.dev_trait, "2")
+
     def test_companion_payload_type_detection_prefers_content_keys_over_url(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
         response = self.client.post(
