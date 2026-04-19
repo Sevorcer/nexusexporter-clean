@@ -25,6 +25,7 @@ COMPANION_JSON_FORM_KEYS = ("payload", "data", "body", "json")
 COMPANION_DEBUG_PREVIEW_LIMIT = 1000
 COMPANION_DEBUG_LOG_ENABLED = os.environ.get("COMPANION_DEBUG_LOG", "").strip().lower() in {"1", "true"}
 
+logging.basicConfig(level=logging.INFO)
 companion_logger = logging.getLogger("companion_ingest")
 
 engine = create_engine(
