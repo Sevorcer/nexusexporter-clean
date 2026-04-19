@@ -24,6 +24,7 @@ MAX_MADDEN_LEAGUE_ID_LENGTH = 64
 COMPANION_JSON_FORM_KEYS = ("payload", "data", "body", "json")
 COMPANION_DEBUG_PREVIEW_LIMIT = 1000
 COMPANION_DEBUG_LOG_ENABLED = os.environ.get("COMPANION_DEBUG_LOG", "").strip().lower() in {"1", "true"}
+DEV_TRAIT_MAP = {0: "Normal", 1: "Star", 2: "Superstar", 3: "X-Factor"}
 
 logging.basicConfig(level=logging.INFO)
 companion_logger = logging.getLogger("companion_ingest")
@@ -275,6 +276,13 @@ def _to_float(value: Any) -> Optional[float]:
         return None
 
 
+def _madden_week_number(row: Dict[str, Any]) -> int:
+    week_index = _to_int(row.get("weekIndex"))
+    if week_index is not None:
+        return week_index + 1
+    return _to_int(_pick(row, "week_number")) or 0
+
+
 def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams", "untracked"]], List[Dict[str, Any]]]:
     if isinstance(payload, dict):
         mapping: List[Tuple[str, Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams"]]] = [
@@ -345,9 +353,16 @@ def _transform_madden_roster(rows: List[Dict[str, Any]]) -> List[PlayerIn]:
     players: List[PlayerIn] = []
     for row in rows:
         signature_slots = _pick(row, "signatureSlotList")
-        dev_trait = _pick(row, "devTraitLabel", "devTrait", "dev_trait")
+        dev_trait = _pick(row, "devTraitLabel", "dev_trait")
         if dev_trait is not None and not isinstance(dev_trait, str):
             dev_trait = str(dev_trait)
+        if dev_trait is None:
+            raw_dev_trait = _pick(row, "devTrait")
+            raw_dev_trait_int = _to_int(raw_dev_trait)
+            if raw_dev_trait_int is not None:
+                dev_trait = DEV_TRAIT_MAP.get(raw_dev_trait_int, str(raw_dev_trait_int))
+            elif raw_dev_trait is not None:
+                dev_trait = str(raw_dev_trait)
         if dev_trait is None and isinstance(signature_slots, list):
             dev_trait = json.dumps(signature_slots)
         players.append(
@@ -373,11 +388,11 @@ def _transform_madden_schedule(rows: List[Dict[str, Any]]) -> List[ScheduleIn]:
     for row in rows:
         status = _pick(row, "status")
         status_text = str(status).lower() if status is not None else ""
-        is_complete = status_text in {"final", "played", "complete", "completed"}
+        is_complete = status_text in {"final", "played", "complete", "completed"} or _to_int(status) == 2
         schedules.append(
             ScheduleIn(
                 id=_to_int(_pick(row, "scheduleId", "id")),
-                week_number=_to_int(_pick(row, "weekIndex", "week_number")) or 0,
+                week_number=_madden_week_number(row),
                 season_number=_to_int(_pick(row, "seasonIndex", "season_number")) or 0,
                 home_team_id=_to_int(_pick(row, "homeTeamId", "home_team_id")),
                 away_team_id=_to_int(_pick(row, "awayTeamId", "away_team_id")),
@@ -413,7 +428,7 @@ def _transform_madden_stats(rows: List[Dict[str, Any]], payload_type: Literal["p
     for row in rows:
         stat = PlayerStatsIn(
             player_id=_to_int(_pick(row, "rosterId", "player_id")),
-            week_number=_to_int(_pick(row, "weekIndex", "week_number")) or 0,
+            week_number=_madden_week_number(row),
             season_number=_to_int(_pick(row, "seasonIndex", "season_number")) or 0,
         )
         if payload_type == "passing":

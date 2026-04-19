@@ -444,10 +444,12 @@ class ApiIngestTests(unittest.TestCase):
 
             schedules = session.exec(select(main.Schedule).where(main.Schedule.league_id == 1)).all()
             self.assertEqual(len(schedules), 1)
+            self.assertEqual(schedules[0].week_number, 2)
             self.assertTrue(schedules[0].is_complete)
 
             stats = session.exec(select(main.PlayerStats).where(main.PlayerStats.league_id == 1)).all()
             self.assertEqual(len(stats), 1)
+            self.assertEqual(stats[0].week_number, 2)
             self.assertEqual(stats[0].pass_yards, 312)
             self.assertEqual(stats[0].pass_tds, 2)
             self.assertEqual(stats[0].interceptions, 1)
@@ -457,7 +459,7 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(stats[0].defensive_ints, 2)
             self.assertEqual(stats[0].tackles, 5)
 
-    def test_companion_roster_route_coerces_integer_dev_trait(self):
+    def test_companion_roster_route_maps_integer_dev_trait(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
         roster_response = self.client.post(
             "/xbsx/22006264/freeagents/roster",
@@ -484,7 +486,33 @@ class ApiIngestTests(unittest.TestCase):
         with Session(main.engine) as session:
             player = session.get(main.Player, 100)
             self.assertIsNotNone(player)
-            self.assertEqual(player.dev_trait, "2")
+            self.assertEqual(player.dev_trait, "Superstar")
+
+    def test_transform_madden_schedule_handles_numeric_status_and_week_sources(self):
+        schedule_from_week_index = main._transform_madden_schedule(
+            [{"id": 1, "weekIndex": 2, "seasonIndex": 1, "status": 2}]
+        )[0]
+        self.assertEqual(schedule_from_week_index.week_number, 3)
+        self.assertTrue(schedule_from_week_index.is_complete)
+
+        schedule_from_week_number = main._transform_madden_schedule(
+            [{"id": 2, "week_number": 2, "season_number": 1, "status": "scheduled"}]
+        )[0]
+        self.assertEqual(schedule_from_week_number.week_number, 2)
+        self.assertFalse(schedule_from_week_number.is_complete)
+
+    def test_transform_madden_stats_week_index_is_zero_based_only(self):
+        stat_from_week_index = main._transform_madden_stats(
+            [{"rosterId": 100, "weekIndex": 2, "seasonIndex": 1, "passYds": 123}],
+            "passing",
+        )[0]
+        self.assertEqual(stat_from_week_index.week_number, 3)
+
+        stat_from_week_number = main._transform_madden_stats(
+            [{"player_id": 100, "week_number": 2, "season_number": 1, "pass_yards": 123}],
+            "passing",
+        )[0]
+        self.assertEqual(stat_from_week_number.week_number, 2)
 
     def test_companion_team_roster_replaces_only_matching_team_players(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
