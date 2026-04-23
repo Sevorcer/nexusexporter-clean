@@ -283,15 +283,16 @@ def _madden_week_number(row: Dict[str, Any]) -> int:
     return _to_int(_pick(row, "week_number")) or 0
 
 
-def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams", "untracked"]], List[Dict[str, Any]]]:
+def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "receiving", "teams", "untracked"]], List[Dict[str, Any]]]:
     if isinstance(payload, dict):
-        mapping: List[Tuple[str, Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "teams"]]] = [
+        mapping: List[Tuple[str, Literal["standings", "roster", "schedule", "passing", "rushing", "defense", "receiving", "teams"]]] = [
             ("teamStandingInfoList", "standings"),
             ("rosterInfoList", "roster"),
             ("gameScheduleInfoList", "schedule"),
             ("playerPassingStatInfoList", "passing"),
             ("playerRushingStatInfoList", "rushing"),
             ("playerDefensiveStatInfoList", "defense"),
+            ("playerReceivingStatInfoList", "receiving"),
             # Companion payloads have been seen with both singular and plural variants.
             ("leagueTeamInfoList", "teams"),
             ("leagueTeamsInfoList", "teams"),
@@ -446,6 +447,24 @@ def _transform_madden_stats(rows: List[Dict[str, Any]], payload_type: Literal["p
     return stats
 
 
+def _transform_madden_receiving_stats(rows: List[Dict[str, Any]]) -> List[PlayerStatsIn]:
+    stats: List[PlayerStatsIn] = []
+    for row in rows:
+        week_number = _madden_week_number(row)
+        season_number = _to_int(_pick(row, "seasonIndex", "season_index")) or 0
+        stats.append(
+            PlayerStatsIn(
+                player_id=_to_int(_pick(row, "rosterId", "roster_id")),
+                week_number=week_number,
+                season_number=season_number,
+                rec_yards=_to_int(_pick(row, "recYds", "rec_yds", "rec_yards")),
+                rec_tds=_to_int(_pick(row, "recTDs", "rec_tds")),
+                receptions=_to_int(_pick(row, "recCatches", "receptions", "rec")),
+            )
+        )
+    return stats
+
+
 def _upsert_teams_from_standings(league_id: int, teams: List[TeamIn], session: Session) -> int:
     upserted = 0
     for team_data in teams:
@@ -551,6 +570,9 @@ def ingest_companion_payload(
         return ingest_schedules(league.id, league.api_key, schedules, session)
     if payload_type in {"passing", "rushing", "defense"}:
         stats = _transform_madden_stats(rows, payload_type)
+        return ingest_companion_stats(league.id, stats, session)
+    if payload_type == "receiving":
+        stats = _transform_madden_receiving_stats(rows)
         return ingest_companion_stats(league.id, stats, session)
     should_transform_teams = payload_type == "teams" or normalized_path == "leagueteams"
     should_ingest_teams = should_transform_teams or normalized_path == "teams"

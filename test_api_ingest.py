@@ -445,6 +445,31 @@ class ApiIngestTests(unittest.TestCase):
         self.assertEqual(defense_response.status_code, 200)
         self.assertEqual(defense_response.json()["updated"], 1)
 
+        receiving_response = self.client.post(
+            "/xbsx/22006264/week/reg/1/receiving",
+            json={
+                "content": {
+                    "playerReceivingStatInfoList": [
+                        {
+                            "statId": 9004,
+                            "rosterId": 100,
+                            "teamId": 10,
+                            "scheduleId": 700,
+                            "seasonIndex": 1,
+                            "stageIndex": 1,
+                            "weekIndex": 1,
+                            "fullName": "Jared Goff",
+                            "recYds": 12,
+                            "recTDs": 1,
+                            "recCatches": 2,
+                        }
+                    ]
+                }
+            },
+        )
+        self.assertEqual(receiving_response.status_code, 200)
+        self.assertEqual(receiving_response.json()["updated"], 1)
+
         with Session(main.engine) as session:
             team = session.get(main.Team, 10)
             self.assertIsNotNone(team)
@@ -474,6 +499,9 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(stats[0].sacks, 1)
             self.assertEqual(stats[0].defensive_ints, 2)
             self.assertEqual(stats[0].tackles, 5)
+            self.assertEqual(stats[0].rec_yards, 12)
+            self.assertEqual(stats[0].rec_tds, 1)
+            self.assertEqual(stats[0].receptions, 2)
 
     def test_companion_roster_route_maps_integer_dev_trait(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
