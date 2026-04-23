@@ -568,11 +568,12 @@ def ingest_companion_payload(
     if payload_type == "schedule":
         schedules = _transform_madden_schedule(rows)
         return ingest_schedules(league.id, league.api_key, schedules, session)
-    if payload_type in {"passing", "rushing", "defense"}:
-        stats = _transform_madden_stats(rows, payload_type)
-        return ingest_companion_stats(league.id, stats, session)
-    if payload_type == "receiving":
-        stats = _transform_madden_receiving_stats(rows)
+    if payload_type in {"passing", "rushing", "defense", "receiving"}:
+        stats = (
+            _transform_madden_receiving_stats(rows)
+            if payload_type == "receiving"
+            else _transform_madden_stats(rows, payload_type)
+        )
         return ingest_companion_stats(league.id, stats, session)
     should_transform_teams = payload_type == "teams" or normalized_path == "leagueteams"
     should_ingest_teams = should_transform_teams or normalized_path == "teams"
