@@ -11,6 +11,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import SQLModel, Field, Relationship, Session, select, create_engine, delete
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
 
@@ -216,6 +217,20 @@ def validate_api_key(league_id: int, key: str, session: Session) -> League:
     if key != league.api_key:
         raise HTTPException(status_code=403, detail="Invalid API key")
     return league
+
+def _upsert(session: Session, model_class, payload: dict) -> None:
+    """Execute a dialect-appropriate INSERT ... ON CONFLICT DO UPDATE (upsert)."""
+    if engine.dialect.name == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as _insert
+    else:
+        from sqlalchemy.dialects.sqlite import insert as _insert
+    stmt = _insert(model_class).values(**payload)
+    set_ = {k: stmt.excluded[k] for k in payload if k != "id"}
+    if set_:
+        stmt = stmt.on_conflict_do_update(index_elements=["id"], set_=set_)
+    else:
+        stmt = stmt.on_conflict_do_nothing()
+    session.execute(stmt)
 
 def clear_league_records(session: Session, model: Type[SQLModel], league_id: int) -> int:
     """Bulk delete rows for models that include a `league_id` column."""
@@ -818,12 +833,12 @@ def ingest_teams(
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
-    cleared = clear_teams_and_dependencies(session, league_id)
     for team_data in teams:
         payload = team_data.model_dump(exclude_unset=True)
-        session.add(Team(league_id=league_id, **payload))
+        payload["league_id"] = league_id
+        _upsert(session, Team, payload)
     session.commit()
-    return {"success": True, "cleared": cleared, "inserted": len(teams)}
+    return {"success": True, "cleared": 0, "inserted": len(teams)}
 
 @app.post("/api/{league_id}/rosters")
 def ingest_rosters(
@@ -835,33 +850,16 @@ def ingest_rosters(
     free_agents_only: bool = False,
 ):
     validate_api_key(league_id, key, session)
-    if free_agents_only:
-        result = session.exec(
-            delete(Player).where(
-                Player.league_id == league_id,
-                Player.team_id.is_(None),
-            )
-        )
-        cleared = result.rowcount or 0
-    elif team_id_scope is not None:
-        result = session.exec(
-            delete(Player).where(
-                Player.league_id == league_id,
-                Player.team_id == team_id_scope,
-            )
-        )
-        cleared = result.rowcount or 0
-    else:
-        cleared = clear_league_records(session, Player, league_id)
     for player_data in players:
         payload = player_data.model_dump(exclude_unset=True)
         if free_agents_only:
             payload["team_id"] = None
         elif team_id_scope is not None:
             payload["team_id"] = team_id_scope
-        session.add(Player(league_id=league_id, **payload))
+        payload["league_id"] = league_id
+        _upsert(session, Player, payload)
     session.commit()
-    return {"success": True, "cleared": cleared, "inserted": len(players)}
+    return {"success": True, "cleared": 0, "inserted": len(players)}
 
 @app.post("/api/{league_id}/standings")
 def ingest_standings(
