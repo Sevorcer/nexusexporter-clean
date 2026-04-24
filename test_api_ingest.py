@@ -170,6 +170,58 @@ class ApiIngestTests(unittest.TestCase):
             self.assertIsNotNone(player)
             self.assertEqual(player.overall_rating, 85)
 
+    def test_schedules_reexport_same_ids_does_not_raise(self):
+        """Re-posting the same schedule IDs must succeed with no UniqueViolation."""
+        self.create_league(api_key="upsert-key")
+        payload = [{"id": 700, "week_number": 1, "season_number": 1, "home_team_id": 10, "away_team_id": 20}]
+        first = self.client.post("/api/1/schedules?key=upsert-key", json=payload)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["cleared"], 0)
+        self.assertEqual(first.json()["inserted"], 1)
+        second = self.client.post("/api/1/schedules?key=upsert-key", json=payload)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()["cleared"], 0)
+        with Session(main.engine) as session:
+            schedules = session.exec(select(main.Schedule).where(main.Schedule.league_id == 1)).all()
+            self.assertEqual(len(schedules), 1)
+            self.assertEqual(schedules[0].id, 700)
+
+    def test_schedules_reexport_updates_schedule_fields(self):
+        """Re-posting a schedule with updated data must update the existing row."""
+        self.create_league(api_key="upsert-key")
+        self.client.post("/api/1/schedules?key=upsert-key", json=[{"id": 700, "week_number": 1, "season_number": 1, "is_complete": False}])
+        self.client.post("/api/1/schedules?key=upsert-key", json=[{"id": 700, "week_number": 1, "season_number": 1, "is_complete": True}])
+        with Session(main.engine) as session:
+            schedule = session.get(main.Schedule, 700)
+            self.assertIsNotNone(schedule)
+            self.assertTrue(schedule.is_complete)
+
+    def test_standings_reexport_same_ids_does_not_raise(self):
+        """Re-posting standings with the same IDs must succeed with no UniqueViolation."""
+        self.create_league(api_key="upsert-key")
+        payload = [{"id": 1, "team_id": 10, "wins": 5, "losses": 3}]
+        first = self.client.post("/api/1/standings?key=upsert-key", json=payload)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["cleared"], 0)
+        self.assertEqual(first.json()["inserted"], 1)
+        second = self.client.post("/api/1/standings?key=upsert-key", json=payload)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()["cleared"], 0)
+        with Session(main.engine) as session:
+            standings = session.exec(select(main.Standing).where(main.Standing.league_id == 1)).all()
+            self.assertEqual(len(standings), 1)
+            self.assertEqual(standings[0].id, 1)
+
+    def test_standings_reexport_updates_standing_fields(self):
+        """Re-posting a standing with updated data must update the existing row."""
+        self.create_league(api_key="upsert-key")
+        self.client.post("/api/1/standings?key=upsert-key", json=[{"id": 1, "team_id": 10, "wins": 5}])
+        self.client.post("/api/1/standings?key=upsert-key", json=[{"id": 1, "team_id": 10, "wins": 9}])
+        with Session(main.engine) as session:
+            standing = session.get(main.Standing, 1)
+            self.assertIsNotNone(standing)
+            self.assertEqual(standing.wins, 9)
+
     def test_teams_reexport_same_ids_does_not_raise(self):
         """Re-posting the same team IDs must succeed with no UniqueViolation."""
         self.create_league(api_key="upsert-key")

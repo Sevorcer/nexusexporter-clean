@@ -11,6 +11,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import SQLModel, Field, Relationship, Session, select, create_engine, delete
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
@@ -109,6 +110,9 @@ class Standing(SQLModel, table=True):
     seed: Optional[int] = None
 
 class PlayerStats(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("league_id", "player_id", "week_number", "season_number", name="uq_playerstats_league_player_week_season"),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     league_id: int = Field(foreign_key="league.id")
     player_id: Optional[int] = Field(default=None)
@@ -194,6 +198,10 @@ def create_db():
         with engine.begin() as connection:
             connection.exec_driver_sql(
                 "ALTER TABLE playerstats DROP CONSTRAINT IF EXISTS playerstats_player_id_fkey"
+            )
+            connection.exec_driver_sql(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_playerstats_league_player_week_season "
+                "ON playerstats (league_id, player_id, week_number, season_number)"
             )
 create_db()
 
@@ -527,6 +535,18 @@ def ingest_companion_stats(league_id: int, stats: List[PlayerStatsIn], session: 
         week_number = payload.get("week_number")
         season_number = payload.get("season_number")
         if week_number is None or season_number is None:
+            continue
+
+        if engine.dialect.name == "postgresql" and player_id is not None:
+            stmt = pg_insert(PlayerStats).values(league_id=league_id, **payload)
+            update_fields = {k: stmt.excluded[k] for k in payload if k not in ("id", "player_id", "week_number", "season_number", "league_id")}
+            stmt = stmt.on_conflict_do_update(
+                constraint="uq_playerstats_league_player_week_season",
+                set_=update_fields,
+                where=(PlayerStats.__table__.c.league_id == stmt.excluded.league_id),
+            )
+            session.execute(stmt)
+            inserted += 1
             continue
 
         existing = None
@@ -887,12 +907,12 @@ def ingest_standings(
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
-    cleared = clear_league_records(session, Standing, league_id)
     for standing_data in standings:
         payload = standing_data.model_dump(exclude_unset=True)
-        session.add(Standing(league_id=league_id, **payload))
+        payload["league_id"] = league_id
+        _upsert(session, Standing, payload)
     session.commit()
-    return {"success": True, "cleared": cleared, "inserted": len(standings)}
+    return {"success": True, "cleared": 0, "inserted": len(standings)}
 
 @app.post("/api/{league_id}/schedules")
 def ingest_schedules(
@@ -902,12 +922,12 @@ def ingest_schedules(
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
-    cleared = clear_league_records(session, Schedule, league_id)
     for schedule_data in schedules:
         payload = schedule_data.model_dump(exclude_unset=True)
-        session.add(Schedule(league_id=league_id, **payload))
+        payload["league_id"] = league_id
+        _upsert(session, Schedule, payload)
     session.commit()
-    return {"success": True, "cleared": cleared, "inserted": len(schedules)}
+    return {"success": True, "cleared": 0, "inserted": len(schedules)}
 
 @app.post("/api/{league_id}/stats")
 def ingest_stats(
