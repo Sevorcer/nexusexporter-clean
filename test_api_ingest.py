@@ -106,7 +106,7 @@ class ApiIngestTests(unittest.TestCase):
         response = self.client.post("/api/1/teams?key=wrong-key", json=[])
         self.assertEqual(response.status_code, 403)
 
-    def test_rosters_endpoint_replaces_previous_league_players(self):
+    def test_rosters_endpoint_upserts_players_on_reexport(self):
         self.create_league(api_key="abc123")
         first_payload = [
             {"id": 1, "first_name": "Patrick", "last_name": "Mahomes", "position": "QB", "overall_rating": 99}
@@ -122,14 +122,14 @@ class ApiIngestTests(unittest.TestCase):
 
         second_response = self.client.post("/api/1/rosters?key=abc123", json=second_payload)
         self.assertEqual(second_response.status_code, 200)
-        self.assertEqual(second_response.json()["cleared"], 1)
+        self.assertEqual(second_response.json()["cleared"], 0)
         self.assertEqual(second_response.json()["inserted"], 2)
 
         with Session(main.engine) as session:
             players = session.exec(select(main.Player).where(main.Player.league_id == 1)).all()
-            self.assertEqual(len(players), 2)
+            self.assertEqual(len(players), 3)
             names = sorted(f"{p.first_name} {p.last_name}" for p in players)
-            self.assertEqual(names, ["Chris Jones", "Travis Kelce"])
+            self.assertEqual(names, ["Chris Jones", "Patrick Mahomes", "Travis Kelce"])
 
     def test_rosters_endpoint_does_not_clear_player_stats(self):
         self.create_league(api_key="abc123")
@@ -146,6 +146,52 @@ class ApiIngestTests(unittest.TestCase):
             stats = session.exec(select(main.PlayerStats).where(main.PlayerStats.league_id == 1)).all()
             self.assertEqual(len(stats), 1)
             self.assertEqual(stats[0].pass_yards, 321)
+
+    def test_rosters_reexport_same_ids_does_not_raise(self):
+        """Re-posting the same player IDs must succeed with no UniqueViolation."""
+        self.create_league(api_key="upsert-key")
+        payload = [{"id": 553386506, "first_name": "Pat", "last_name": "Mahomes", "overall_rating": 99}]
+        first = self.client.post("/api/1/rosters?key=upsert-key", json=payload)
+        self.assertEqual(first.status_code, 200)
+        second = self.client.post("/api/1/rosters?key=upsert-key", json=payload)
+        self.assertEqual(second.status_code, 200)
+        with Session(main.engine) as session:
+            players = session.exec(select(main.Player).where(main.Player.league_id == 1)).all()
+            self.assertEqual(len(players), 1)
+            self.assertEqual(players[0].id, 553386506)
+
+    def test_rosters_reexport_updates_player_fields(self):
+        """Re-posting a player with updated data must update the existing row."""
+        self.create_league(api_key="upsert-key")
+        self.client.post("/api/1/rosters?key=upsert-key", json=[{"id": 1, "first_name": "Pat", "overall_rating": 99}])
+        self.client.post("/api/1/rosters?key=upsert-key", json=[{"id": 1, "first_name": "Pat", "overall_rating": 85}])
+        with Session(main.engine) as session:
+            player = session.get(main.Player, 1)
+            self.assertIsNotNone(player)
+            self.assertEqual(player.overall_rating, 85)
+
+    def test_teams_reexport_same_ids_does_not_raise(self):
+        """Re-posting the same team IDs must succeed with no UniqueViolation."""
+        self.create_league(api_key="upsert-key")
+        payload = [{"id": 10, "team_name": "Lions"}]
+        first = self.client.post("/api/1/teams?key=upsert-key", json=payload)
+        self.assertEqual(first.status_code, 200)
+        second = self.client.post("/api/1/teams?key=upsert-key", json=payload)
+        self.assertEqual(second.status_code, 200)
+        with Session(main.engine) as session:
+            teams = session.exec(select(main.Team).where(main.Team.league_id == 1)).all()
+            self.assertEqual(len(teams), 1)
+            self.assertEqual(teams[0].id, 10)
+
+    def test_teams_reexport_updates_team_fields(self):
+        """Re-posting a team with updated data must update the existing row."""
+        self.create_league(api_key="upsert-key")
+        self.client.post("/api/1/teams?key=upsert-key", json=[{"id": 10, "team_name": "Lions", "wins": 5}])
+        self.client.post("/api/1/teams?key=upsert-key", json=[{"id": 10, "team_name": "Lions", "wins": 9}])
+        with Session(main.engine) as session:
+            team = session.get(main.Team, 10)
+            self.assertIsNotNone(team)
+            self.assertEqual(team.wins, 9)
 
     def test_stats_endpoint_clears_only_matching_week_and_season(self):
         self.create_league(api_key="stats-key")
@@ -558,7 +604,7 @@ class ApiIngestTests(unittest.TestCase):
         )[0]
         self.assertEqual(stat_from_week_number.week_number, 2)
 
-    def test_companion_team_roster_replaces_only_matching_team_players(self):
+    def test_companion_team_roster_upserts_new_players_for_team(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
         self.client.post(
             "/api/1/rosters?key=companion-key",
@@ -574,19 +620,19 @@ class ApiIngestTests(unittest.TestCase):
             json={"rosterInfoList": [{"rosterId": 101, "teamId": 10, "firstName": "New", "lastName": "Lion"}]},
         )
         self.assertEqual(roster_response.status_code, 200)
-        self.assertEqual(roster_response.json()["cleared"], 1)
+        self.assertEqual(roster_response.json()["cleared"], 0)
         self.assertEqual(roster_response.json()["inserted"], 1)
 
         with Session(main.engine) as session:
             players = session.exec(select(main.Player).where(main.Player.league_id == 1)).all()
             by_id = {player.id: player for player in players}
-            self.assertEqual(len(players), 3)
-            self.assertNotIn(100, by_id)
+            self.assertEqual(len(players), 4)
+            self.assertEqual(by_id[100].team_id, 10)
             self.assertEqual(by_id[101].team_id, 10)
             self.assertEqual(by_id[200].team_id, 20)
             self.assertIsNone(by_id[300].team_id)
 
-    def test_companion_free_agents_roster_replaces_only_free_agents(self):
+    def test_companion_free_agents_roster_upserts_new_free_agents(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
         self.client.post(
             "/api/1/rosters?key=companion-key",
@@ -602,14 +648,16 @@ class ApiIngestTests(unittest.TestCase):
             json={"rosterInfoList": [{"rosterId": 302, "teamId": None, "firstName": "New", "lastName": "FreeAgent"}]},
         )
         self.assertEqual(roster_response.status_code, 200)
-        self.assertEqual(roster_response.json()["cleared"], 2)
+        self.assertEqual(roster_response.json()["cleared"], 0)
         self.assertEqual(roster_response.json()["inserted"], 1)
 
         with Session(main.engine) as session:
             players = session.exec(select(main.Player).where(main.Player.league_id == 1)).all()
             by_id = {player.id: player for player in players}
-            self.assertEqual(len(players), 2)
+            self.assertEqual(len(players), 4)
             self.assertEqual(by_id[100].team_id, 10)
+            self.assertIsNone(by_id[300].team_id)
+            self.assertIsNone(by_id[301].team_id)
             self.assertIsNone(by_id[302].team_id)
 
     def test_companion_payload_type_detection_prefers_content_keys_over_url(self):
