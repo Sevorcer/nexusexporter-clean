@@ -888,6 +888,28 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(team.team_name, "Lions")
             self.assertEqual(team.overall_rating, 84)
 
+    def test_companion_standings_after_leagueteams_does_not_raise(self):
+        """Posting /standings after /leagueteams for the same teams must not cause UniqueViolation."""
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+        team_payload = {
+            "leagueTeamInfoList": [
+                {"teamId": 775553054, "teamName": "Ravens", "divisionName": "AFC North", "teamOvr": 93, "totalWins": 9, "totalLosses": 8, "totalTies": 0}
+            ]
+        }
+        leagueteams_resp = self.client.post("/xbsx/22006264/leagueteams", json=team_payload)
+        self.assertEqual(leagueteams_resp.status_code, 200)
+        standings_payload = {
+            "message": "",
+            "success": True,
+            "teamStandingInfoList": [
+                {"teamId": 775553054, "teamName": "Ravens", "divisionName": "AFC North", "teamOvr": 93, "totalWins": 9, "totalLosses": 8, "totalTies": 0}
+            ],
+        }
+        standings_resp = self.client.post("/xbsx/22006264/standings", json=standings_payload)
+        self.assertEqual(standings_resp.status_code, 200)
+        standings_resp2 = self.client.post("/xbsx/22006264/standings", json=standings_payload)
+        self.assertEqual(standings_resp2.status_code, 200)
+
     def test_companion_untracked_weekly_stat_types_acknowledge_success(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
         response = self.client.post(
