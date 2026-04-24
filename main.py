@@ -11,7 +11,6 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import SQLModel, Field, Relationship, Session, select, create_engine, delete
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
 
@@ -218,13 +217,13 @@ def validate_api_key(league_id: int, key: str, session: Session) -> League:
         raise HTTPException(status_code=403, detail="Invalid API key")
     return league
 
-def _upsert(session: Session, model_class, payload: dict) -> None:
+def _upsert(session: Session, model_cls, payload: dict) -> None:
     """Execute a dialect-appropriate INSERT ... ON CONFLICT DO UPDATE (upsert)."""
     if engine.dialect.name == "postgresql":
         from sqlalchemy.dialects.postgresql import insert as _insert
     else:
         from sqlalchemy.dialects.sqlite import insert as _insert
-    stmt = _insert(model_class).values(**payload)
+    stmt = _insert(model_cls).values(**payload)
     set_ = {k: stmt.excluded[k] for k in payload if k != "id"}
     if set_:
         stmt = stmt.on_conflict_do_update(index_elements=["id"], set_=set_)
