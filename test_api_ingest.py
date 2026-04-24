@@ -245,6 +245,38 @@ class ApiIngestTests(unittest.TestCase):
             self.assertIsNotNone(team)
             self.assertEqual(team.wins, 9)
 
+    def test_two_leagues_with_distinct_team_ids_are_independent(self):
+        """Each league's team data is isolated; re-exporting one league must not affect the other."""
+        self.create_league(league_id=1, api_key="key1")
+        self.create_league(league_id=2, api_key="key2")
+        self.client.post("/api/1/teams?key=key1", json=[{"id": 10, "team_name": "Lions", "wins": 9}])
+        self.client.post("/api/2/teams?key=key2", json=[{"id": 20, "team_name": "Bears", "wins": 5}])
+        updated = self.client.post("/api/2/teams?key=key2", json=[{"id": 20, "team_name": "Bears", "wins": 7}])
+        self.assertEqual(updated.status_code, 200)
+        with Session(main.engine) as session:
+            teams_l1 = session.exec(select(main.Team).where(main.Team.league_id == 1)).all()
+            teams_l2 = session.exec(select(main.Team).where(main.Team.league_id == 2)).all()
+            self.assertEqual(len(teams_l1), 1)
+            self.assertEqual(teams_l1[0].wins, 9)
+            self.assertEqual(len(teams_l2), 1)
+            self.assertEqual(teams_l2[0].wins, 7)
+
+    def test_two_leagues_with_distinct_player_ids_are_independent(self):
+        """Each league's player data is isolated; re-exporting one league must not affect the other."""
+        self.create_league(league_id=1, api_key="key1")
+        self.create_league(league_id=2, api_key="key2")
+        self.client.post("/api/1/rosters?key=key1", json=[{"id": 100, "first_name": "Pat", "overall_rating": 99}])
+        self.client.post("/api/2/rosters?key=key2", json=[{"id": 200, "first_name": "Travis", "overall_rating": 98}])
+        updated = self.client.post("/api/2/rosters?key=key2", json=[{"id": 200, "first_name": "Travis", "overall_rating": 90}])
+        self.assertEqual(updated.status_code, 200)
+        with Session(main.engine) as session:
+            players_l1 = session.exec(select(main.Player).where(main.Player.league_id == 1)).all()
+            players_l2 = session.exec(select(main.Player).where(main.Player.league_id == 2)).all()
+            self.assertEqual(len(players_l1), 1)
+            self.assertEqual(players_l1[0].overall_rating, 99)
+            self.assertEqual(len(players_l2), 1)
+            self.assertEqual(players_l2[0].overall_rating, 90)
+
     def test_stats_endpoint_clears_only_matching_week_and_season(self):
         self.create_league(api_key="stats-key")
         with Session(main.engine) as session:
