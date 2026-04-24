@@ -251,7 +251,7 @@ def _upsert(session: Session, model: Type[SQLModel], payload: Dict[str, Any]) ->
         stmt = pg_insert(model).values(**payload)
         stmt = stmt.on_conflict_do_update(
             index_elements=["id"],
-            set_={k: stmt.excluded[k] for k in payload if k != "id"},
+            set_={k: stmt.excluded[k] for k in payload if k not in ("id", "league_id")},
             where=(model.__table__.c.league_id == stmt.excluded.league_id),
         )
         session.execute(stmt)

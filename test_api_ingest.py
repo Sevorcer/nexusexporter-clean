@@ -147,7 +147,7 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(len(stats), 1)
             self.assertEqual(stats[0].pass_yards, 321)
 
-    def test_roster_reexport_same_ids_does_not_raise(self):
+    def test_rosters_reexport_same_ids_does_not_raise(self):
         """Re-posting the same player IDs must succeed with no UniqueViolation."""
         self.create_league(api_key="upsert-key")
         payload = [{"id": 553386506, "first_name": "Pat", "last_name": "Mahomes", "overall_rating": 99}]
@@ -160,7 +160,7 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(len(players), 1)
             self.assertEqual(players[0].id, 553386506)
 
-    def test_roster_reexport_updates_player_fields(self):
+    def test_rosters_reexport_updates_player_fields(self):
         """Re-posting a player with updated data must update the existing row."""
         self.create_league(api_key="upsert-key")
         self.client.post("/api/1/rosters?key=upsert-key", json=[{"id": 1, "first_name": "Pat", "overall_rating": 99}])
