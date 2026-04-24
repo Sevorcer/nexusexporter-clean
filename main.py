@@ -11,6 +11,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import SQLModel, Field, Relationship, Session, select, create_engine, delete
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
 
@@ -231,6 +232,38 @@ def clear_teams_and_dependencies(session: Session, league_id: int) -> int:
         if model is Team:
             cleared_team_records = cleared
     return cleared_team_records
+
+
+def _upsert(session: Session, model: Type[SQLModel], payload: Dict[str, Any]) -> None:
+    """Upsert a row by primary-key (``id``).
+
+    Uses a PostgreSQL ``INSERT ... ON CONFLICT DO UPDATE`` so concurrent
+    parallel exports never produce a ``UniqueViolation``.  The WHERE clause
+    ensures we never overwrite a row that belongs to a different league.
+
+    Falls back to a manual select-then-update strategy for SQLite (tests).
+    """
+    row_id = payload.get("id")
+    if row_id is None:
+        session.add(model(**payload))
+        return
+    if engine.dialect.name == "postgresql":
+        stmt = pg_insert(model).values(**payload)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["id"],
+            set_={k: stmt.excluded[k] for k in payload if k != "id"},
+            where=(model.__table__.c.league_id == stmt.excluded.league_id),
+        )
+        session.execute(stmt)
+    else:
+        existing = session.get(model, row_id)
+        if existing is None:
+            session.add(model(**payload))
+        elif existing.league_id == payload.get("league_id"):
+            for field, value in payload.items():
+                if field != "id":
+                    setattr(existing, field, value)
+            session.add(existing)
 
 
 def get_league_or_404(league_id: int, session: Session) -> League:
@@ -818,12 +851,12 @@ def ingest_teams(
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
-    cleared = clear_teams_and_dependencies(session, league_id)
     for team_data in teams:
         payload = team_data.model_dump(exclude_unset=True)
-        session.add(Team(league_id=league_id, **payload))
+        payload["league_id"] = league_id
+        _upsert(session, Team, payload)
     session.commit()
-    return {"success": True, "cleared": cleared, "inserted": len(teams)}
+    return {"success": True, "cleared": 0, "inserted": len(teams)}
 
 @app.post("/api/{league_id}/rosters")
 def ingest_rosters(
@@ -835,33 +868,16 @@ def ingest_rosters(
     free_agents_only: bool = False,
 ):
     validate_api_key(league_id, key, session)
-    if free_agents_only:
-        result = session.exec(
-            delete(Player).where(
-                Player.league_id == league_id,
-                Player.team_id.is_(None),
-            )
-        )
-        cleared = result.rowcount or 0
-    elif team_id_scope is not None:
-        result = session.exec(
-            delete(Player).where(
-                Player.league_id == league_id,
-                Player.team_id == team_id_scope,
-            )
-        )
-        cleared = result.rowcount or 0
-    else:
-        cleared = clear_league_records(session, Player, league_id)
     for player_data in players:
         payload = player_data.model_dump(exclude_unset=True)
         if free_agents_only:
             payload["team_id"] = None
         elif team_id_scope is not None:
             payload["team_id"] = team_id_scope
-        session.add(Player(league_id=league_id, **payload))
+        payload["league_id"] = league_id
+        _upsert(session, Player, payload)
     session.commit()
-    return {"success": True, "cleared": cleared, "inserted": len(players)}
+    return {"success": True, "cleared": 0, "inserted": len(players)}
 
 @app.post("/api/{league_id}/standings")
 def ingest_standings(
