@@ -507,23 +507,14 @@ def _transform_madden_receiving_stats(rows: List[Dict[str, Any]]) -> List[Player
 
 
 def _upsert_teams_from_standings(league_id: int, teams: List[TeamIn], session: Session) -> int:
-    upserted = 0
     for team_data in teams:
         if team_data.id is None:
             continue
-        existing = session.exec(
-            select(Team).where(Team.league_id == league_id, Team.id == team_data.id)
-        ).first()
-        payload = team_data.model_dump(exclude_unset=True, exclude={"id"})
-        if existing is None:
-            session.add(Team(id=team_data.id, league_id=league_id, **payload))
-        else:
-            for field, value in payload.items():
-                setattr(existing, field, value)
-            session.add(existing)
-        upserted += 1
+        payload = team_data.model_dump(exclude_unset=True)
+        payload["league_id"] = league_id
+        _upsert(session, Team, payload)
     session.commit()
-    return upserted
+    return len(teams)
 
 
 def ingest_companion_stats(league_id: int, stats: List[PlayerStatsIn], session: Session) -> Dict[str, Any]:
