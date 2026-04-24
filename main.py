@@ -63,6 +63,9 @@ class League(SQLModel, table=True):
     user: Optional[User] = Relationship(back_populates="leagues")
 
 class Team(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("league_id", "id", name="uq_team_league_id"),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     league_id: int = Field(foreign_key="league.id")
     team_name: Optional[str] = None
@@ -75,6 +78,9 @@ class Team(SQLModel, table=True):
     city_name: Optional[str] = None
 
 class Player(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("league_id", "id", name="uq_player_league_id"),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     league_id: int = Field(foreign_key="league.id")
     team_id: Optional[int] = Field(default=None, foreign_key="team.id")
@@ -89,6 +95,9 @@ class Player(SQLModel, table=True):
     contract_salary: Optional[float] = None
 
 class Schedule(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("league_id", "id", name="uq_schedule_league_id"),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     league_id: int = Field(foreign_key="league.id")
     week_number: int
@@ -100,6 +109,9 @@ class Schedule(SQLModel, table=True):
     is_complete: bool = False
 
 class Standing(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("league_id", "id", name="uq_standing_league_id"),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     league_id: int = Field(foreign_key="league.id")
     team_id: Optional[int] = Field(default=None, foreign_key="team.id")
@@ -203,6 +215,18 @@ def create_db():
                 "CREATE UNIQUE INDEX IF NOT EXISTS uq_playerstats_league_player_week_season "
                 "ON playerstats (league_id, player_id, week_number, season_number)"
             )
+            connection.exec_driver_sql(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_team_league_id ON team (league_id, id)"
+            )
+            connection.exec_driver_sql(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_player_league_id ON player (league_id, id)"
+            )
+            connection.exec_driver_sql(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_schedule_league_id ON schedule (league_id, id)"
+            )
+            connection.exec_driver_sql(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_standing_league_id ON standing (league_id, id)"
+            )
 create_db()
 
 # ----------- DEPENDENCIES -----------
@@ -243,11 +267,11 @@ def clear_teams_and_dependencies(session: Session, league_id: int) -> int:
 
 
 def _upsert(session: Session, model: Type[SQLModel], payload: Dict[str, Any]) -> None:
-    """Upsert a row by primary-key (``id``).
+    """Upsert a row using a composite ``(league_id, id)`` conflict target.
 
-    Uses a PostgreSQL ``INSERT ... ON CONFLICT DO UPDATE`` so concurrent
-    parallel exports never produce a ``UniqueViolation``.  The WHERE clause
-    ensures we never overwrite a row that belongs to a different league.
+    Uses a PostgreSQL ``INSERT ... ON CONFLICT (league_id, id) DO UPDATE`` so
+    re-exports of the same league never produce a ``UniqueViolation``, and
+    rows that belong to different leagues are never overwritten.
 
     Falls back to a manual select-then-update strategy for SQLite (tests).
     """
@@ -258,9 +282,8 @@ def _upsert(session: Session, model: Type[SQLModel], payload: Dict[str, Any]) ->
     if engine.dialect.name == "postgresql":
         stmt = pg_insert(model).values(**payload)
         stmt = stmt.on_conflict_do_update(
-            index_elements=["id"],
+            index_elements=["league_id", "id"],
             set_={k: stmt.excluded[k] for k in payload if k not in ("id", "league_id")},
-            where=(model.__table__.c.league_id == stmt.excluded.league_id),
         )
         session.execute(stmt)
     else:
