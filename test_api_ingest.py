@@ -166,7 +166,7 @@ class ApiIngestTests(unittest.TestCase):
         self.client.post("/api/1/rosters?key=upsert-key", json=[{"id": 1, "first_name": "Pat", "overall_rating": 99}])
         self.client.post("/api/1/rosters?key=upsert-key", json=[{"id": 1, "first_name": "Pat", "overall_rating": 85}])
         with Session(main.engine) as session:
-            player = session.get(main.Player, 1)
+            player = session.exec(select(main.Player).where(main.Player.id == 1, main.Player.league_id == 1)).first()
             self.assertIsNotNone(player)
             self.assertEqual(player.overall_rating, 85)
 
@@ -276,6 +276,23 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(players_l1[0].overall_rating, 99)
             self.assertEqual(len(players_l2), 1)
             self.assertEqual(players_l2[0].overall_rating, 90)
+
+    def test_same_player_id_in_two_leagues_does_not_raise(self):
+        """The same Madden player id must be insertable into two separate leagues without UniqueViolation."""
+        self.create_league(league_id=1, api_key="key1")
+        self.create_league(league_id=2, api_key="key2")
+        shared_id = 553388768
+        resp1 = self.client.post("/api/1/rosters?key=key1", json=[{"id": shared_id, "first_name": "Pat", "overall_rating": 99}])
+        self.assertEqual(resp1.status_code, 200)
+        resp2 = self.client.post("/api/2/rosters?key=key2", json=[{"id": shared_id, "first_name": "Pat", "overall_rating": 99}])
+        self.assertEqual(resp2.status_code, 200)
+        with Session(main.engine) as session:
+            players_l1 = session.exec(select(main.Player).where(main.Player.league_id == 1)).all()
+            players_l2 = session.exec(select(main.Player).where(main.Player.league_id == 2)).all()
+            self.assertEqual(len(players_l1), 1)
+            self.assertEqual(players_l1[0].id, shared_id)
+            self.assertEqual(len(players_l2), 1)
+            self.assertEqual(players_l2[0].id, shared_id)
 
     def test_stats_endpoint_clears_only_matching_week_and_season(self):
         self.create_league(api_key="stats-key")
@@ -658,7 +675,7 @@ class ApiIngestTests(unittest.TestCase):
         self.assertEqual(roster_response.json()["inserted"], 1)
 
         with Session(main.engine) as session:
-            player = session.get(main.Player, 100)
+            player = session.exec(select(main.Player).where(main.Player.id == 100, main.Player.league_id == 1)).first()
             self.assertIsNotNone(player)
             self.assertEqual(player.dev_trait, "Superstar")
 

@@ -78,11 +78,8 @@ class Team(SQLModel, table=True):
     city_name: Optional[str] = None
 
 class Player(SQLModel, table=True):
-    __table_args__ = (
-        UniqueConstraint("league_id", "id", name="uq_player_league_id"),
-    )
-    id: Optional[int] = Field(default=None, primary_key=True)
-    league_id: int = Field(foreign_key="league.id")
+    id: int = Field(primary_key=True)
+    league_id: int = Field(primary_key=True, foreign_key="league.id")
     team_id: Optional[int] = Field(default=None, foreign_key="team.id")
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -218,8 +215,23 @@ def create_db():
             connection.exec_driver_sql(
                 "CREATE UNIQUE INDEX IF NOT EXISTS uq_team_league_id ON team (league_id, id)"
             )
+            # Migrate player table to composite primary key (id, league_id) so that
+            # ON CONFLICT (league_id, id) in _upsert can target the PK and the same
+            # player id is allowed to exist in multiple leagues.
+            # This migration is safe on existing data: the previous PK on (id) alone
+            # already guarantees unique id values, so (id, league_id) combinations are
+            # trivially unique and the ADD PRIMARY KEY will never fail.
             connection.exec_driver_sql(
-                "CREATE UNIQUE INDEX IF NOT EXISTS uq_player_league_id ON player (league_id, id)"
+                "ALTER TABLE player DROP CONSTRAINT IF EXISTS player_pkey"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE player DROP CONSTRAINT IF EXISTS uq_player_league_id"
+            )
+            connection.exec_driver_sql(
+                "DROP INDEX IF EXISTS uq_player_league_id"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE player ADD PRIMARY KEY (id, league_id)"
             )
             connection.exec_driver_sql(
                 "CREATE UNIQUE INDEX IF NOT EXISTS uq_schedule_league_id ON schedule (league_id, id)"
@@ -287,10 +299,13 @@ def _upsert(session: Session, model: Type[SQLModel], payload: Dict[str, Any]) ->
         )
         session.execute(stmt)
     else:
-        existing = session.get(model, row_id)
+        league_id = payload.get("league_id")
+        existing = session.exec(
+            select(model).where(model.id == row_id, model.league_id == league_id)
+        ).first()
         if existing is None:
             session.add(model(**payload))
-        elif existing.league_id == payload.get("league_id"):
+        else:
             for field, value in payload.items():
                 if field != "id":
                     setattr(existing, field, value)
