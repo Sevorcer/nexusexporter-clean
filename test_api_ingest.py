@@ -241,7 +241,7 @@ class ApiIngestTests(unittest.TestCase):
         self.client.post("/api/1/teams?key=upsert-key", json=[{"id": 10, "team_name": "Lions", "wins": 5}])
         self.client.post("/api/1/teams?key=upsert-key", json=[{"id": 10, "team_name": "Lions", "wins": 9}])
         with Session(main.engine) as session:
-            team = session.get(main.Team, 10)
+            team = session.get(main.Team, (10, 1))
             self.assertIsNotNone(team)
             self.assertEqual(team.wins, 9)
 
@@ -293,6 +293,23 @@ class ApiIngestTests(unittest.TestCase):
             self.assertEqual(players_l1[0].id, shared_id)
             self.assertEqual(len(players_l2), 1)
             self.assertEqual(players_l2[0].id, shared_id)
+
+    def test_same_team_id_in_two_leagues_does_not_raise(self):
+        """The same Madden team id must be insertable into two separate leagues without UniqueViolation."""
+        self.create_league(league_id=1, api_key="key1")
+        self.create_league(league_id=2, api_key="key2")
+        shared_id = 775553054
+        resp1 = self.client.post("/api/1/teams?key=key1", json=[{"id": shared_id, "team_name": "Lions"}])
+        self.assertEqual(resp1.status_code, 200)
+        resp2 = self.client.post("/api/2/teams?key=key2", json=[{"id": shared_id, "team_name": "Lions"}])
+        self.assertEqual(resp2.status_code, 200)
+        with Session(main.engine) as session:
+            teams_l1 = session.exec(select(main.Team).where(main.Team.league_id == 1)).all()
+            teams_l2 = session.exec(select(main.Team).where(main.Team.league_id == 2)).all()
+            self.assertEqual(len(teams_l1), 1)
+            self.assertEqual(teams_l1[0].id, shared_id)
+            self.assertEqual(len(teams_l2), 1)
+            self.assertEqual(teams_l2[0].id, shared_id)
 
     def test_stats_endpoint_clears_only_matching_week_and_season(self):
         self.create_league(api_key="stats-key")
@@ -618,7 +635,7 @@ class ApiIngestTests(unittest.TestCase):
         self.assertEqual(receiving_response.json()["updated"], 1)
 
         with Session(main.engine) as session:
-            team = session.get(main.Team, 10)
+            team = session.get(main.Team, (10, 1))
             self.assertIsNotNone(team)
             self.assertEqual(team.team_name, "Lions")
             self.assertEqual(team.division, "NFC North")
@@ -891,7 +908,7 @@ class ApiIngestTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["inserted"], 1)
         with Session(main.engine) as session:
-            team = session.get(main.Team, 10)
+            team = session.get(main.Team, (10, 1))
             self.assertIsNotNone(team)
             self.assertEqual(team.team_name, "Lions")
             self.assertEqual(team.overall_rating, 84)
@@ -932,7 +949,7 @@ class ApiIngestTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["inserted"], 1)
         with Session(main.engine) as session:
-            team = session.get(main.Team, 10)
+            team = session.get(main.Team, (10, 1))
             self.assertIsNotNone(team)
             self.assertEqual(team.team_name, "Lions")
             self.assertEqual(team.overall_rating, 84)

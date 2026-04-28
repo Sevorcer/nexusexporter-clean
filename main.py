@@ -66,8 +66,8 @@ class Team(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("league_id", "id", name="uq_team_league_id"),
     )
-    id: Optional[int] = Field(default=None, primary_key=True)
-    league_id: int = Field(foreign_key="league.id")
+    id: int = Field(primary_key=True)
+    league_id: int = Field(primary_key=True, foreign_key="league.id")
     team_name: Optional[str] = None
     abbreviation: Optional[str] = None
     division: Optional[str] = None
@@ -214,6 +214,16 @@ def create_db():
             )
             connection.exec_driver_sql(
                 "CREATE UNIQUE INDEX IF NOT EXISTS uq_team_league_id ON team (league_id, id)"
+            )
+            # Migrate team table to composite primary key (id, league_id) — same pattern
+            # as the player table migration below, so that ON CONFLICT (league_id, id)
+            # in _upsert can target the PK constraint instead of falling through to
+            # team_pkey on (id) alone.
+            connection.exec_driver_sql(
+                "ALTER TABLE team DROP CONSTRAINT IF EXISTS team_pkey"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE team ADD PRIMARY KEY (id, league_id)"
             )
             # Migrate player table to composite primary key (id, league_id) so that
             # ON CONFLICT (league_id, id) in _upsert can target the PK and the same
@@ -1278,7 +1288,7 @@ def player_profile_page(league_id: int, player_id: int, request: Request, sessio
         raise HTTPException(status_code=404, detail="Player not found")
     team = None
     if player.team_id is not None:
-        team = session.get(Team, player.team_id)
+        team = session.get(Team, (player.team_id, league_id))
     stats_rows = session.exec(
         select(PlayerStats).where(
             PlayerStats.league_id == league_id,
