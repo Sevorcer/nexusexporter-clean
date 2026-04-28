@@ -219,6 +219,22 @@ def create_db():
             # as the player table migration below, so that ON CONFLICT (league_id, id)
             # in _upsert can target the PK constraint instead of falling through to
             # team_pkey on (id) alone.
+            #
+            # Step 1: Drop FK constraints that reference team_pkey before dropping it.
+            # PostgreSQL won't allow dropping the PK while FK constraints depend on it.
+            connection.exec_driver_sql(
+                "ALTER TABLE player DROP CONSTRAINT IF EXISTS player_team_id_fkey"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE schedule DROP CONSTRAINT IF EXISTS schedule_home_team_id_fkey"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE schedule DROP CONSTRAINT IF EXISTS schedule_away_team_id_fkey"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE standing DROP CONSTRAINT IF EXISTS standing_team_id_fkey"
+            )
+            # Step 2: Drop and re-add team PK as composite.
             connection.exec_driver_sql(
                 "ALTER TABLE team DROP CONSTRAINT IF EXISTS team_pkey"
             )
