@@ -127,6 +127,7 @@ class PlayerStats(SQLModel, table=True):
     player_id: Optional[int] = Field(default=None)
     week_number: int
     season_number: int
+    season_type: Optional[str] = None
     pass_yards: Optional[int] = None
     pass_tds: Optional[int] = None
     interceptions: Optional[int] = None
@@ -188,6 +189,7 @@ class PlayerStatsIn(SQLModel):
     player_id: Optional[int] = None
     week_number: int
     season_number: int
+    season_type: Optional[str] = None
     pass_yards: Optional[int] = None
     pass_tds: Optional[int] = None
     interceptions: Optional[int] = None
@@ -264,6 +266,11 @@ def create_db():
             )
             connection.exec_driver_sql(
                 "CREATE UNIQUE INDEX IF NOT EXISTS uq_standing_league_id ON standing (league_id, id)"
+            )
+            # Add season_type column to playerstats for pre/reg/post season filtering.
+            # Existing rows will remain NULL; new rows will be populated from the URL path.
+            connection.exec_driver_sql(
+                "ALTER TABLE playerstats ADD COLUMN IF NOT EXISTS season_type VARCHAR"
             )
 create_db()
 
@@ -529,13 +536,14 @@ def _transform_madden_teams(rows: List[Dict[str, Any]]) -> List[TeamIn]:
     return teams
 
 
-def _transform_madden_stats(rows: List[Dict[str, Any]], payload_type: Literal["passing", "rushing", "defense"]) -> List[PlayerStatsIn]:
+def _transform_madden_stats(rows: List[Dict[str, Any]], payload_type: Literal["passing", "rushing", "defense"], week_type: Optional[str] = None) -> List[PlayerStatsIn]:
     stats: List[PlayerStatsIn] = []
     for row in rows:
         stat = PlayerStatsIn(
             player_id=_to_int(_pick(row, "rosterId", "player_id")),
             week_number=_madden_week_number(row),
             season_number=_to_int(_pick(row, "seasonIndex", "season_number")) or 0,
+            season_type=week_type,
         )
         if payload_type == "passing":
             stat.pass_yards = _to_int(_pick(row, "passYds", "pass_yards"))
@@ -552,7 +560,7 @@ def _transform_madden_stats(rows: List[Dict[str, Any]], payload_type: Literal["p
     return stats
 
 
-def _transform_madden_receiving_stats(rows: List[Dict[str, Any]]) -> List[PlayerStatsIn]:
+def _transform_madden_receiving_stats(rows: List[Dict[str, Any]], week_type: Optional[str] = None) -> List[PlayerStatsIn]:
     stats: List[PlayerStatsIn] = []
     for row in rows:
         week_number = _madden_week_number(row)
@@ -562,6 +570,7 @@ def _transform_madden_receiving_stats(rows: List[Dict[str, Any]]) -> List[Player
                 player_id=_to_int(_pick(row, "rosterId", "roster_id")),
                 week_number=week_number,
                 season_number=season_number,
+                season_type=week_type,
                 rec_yards=_to_int(_pick(row, "recYds", "rec_yds", "rec_yards")),
                 rec_tds=_to_int(_pick(row, "recTDs", "rec_tds")),
                 receptions=_to_int(_pick(row, "recCatches", "receptions", "rec")),
@@ -659,6 +668,15 @@ def ingest_companion_payload(
     if payload_type == "untracked":
         return {"status": "ok", "tracked": False, "message": "Stat type not currently tracked"}
 
+    # Extract week_type ("pre", "reg", "post") from companion paths like
+    # "week/{week_type}/{week_num}/{stat_type}".
+    path_segments = normalized_path.split("/")
+    week_type: Optional[str] = (
+        path_segments[1]
+        if len(path_segments) == 4 and path_segments[0] == "week"
+        else None
+    )
+
     if payload_type == "standings":
         standings, teams_from_standings = _transform_madden_standings(rows)
         _upsert_teams_from_standings(league.id, teams_from_standings, session)
@@ -678,9 +696,9 @@ def ingest_companion_payload(
         return ingest_schedules(league.id, league.api_key, schedules, session)
     if payload_type in {"passing", "rushing", "defense", "receiving"}:
         stats = (
-            _transform_madden_receiving_stats(rows)
+            _transform_madden_receiving_stats(rows, week_type=week_type)
             if payload_type == "receiving"
-            else _transform_madden_stats(rows, payload_type)
+            else _transform_madden_stats(rows, payload_type, week_type=week_type)
         )
         return ingest_companion_stats(league.id, stats, session)
     should_transform_teams = payload_type == "teams" or normalized_path == "leagueteams"
@@ -705,15 +723,17 @@ def ingest_companion_payload(
             free_agents_only=is_free_agents_roster_path,
         )
 
-    segments = normalized_path.split("/")
-    if len(segments) == 4 and segments[0] == "week":
-        if segments[3] in {"team", "kicking", "punting"}:
+    if week_type is not None:
+        if path_segments[3] in {"team", "kicking", "punting"}:
             return {
                 "success": True,
                 "tracked": False,
-                "message": f"Companion stat type '{segments[3]}' received but not tracked",
+                "message": f"Companion stat type '{path_segments[3]}' received but not tracked",
             }
         stats = [PlayerStatsIn.model_validate(row) for row in rows]
+        for stat in stats:
+            if stat.season_type is None:
+                stat.season_type = week_type
         return ingest_companion_stats(league.id, stats, session)
 
     raise HTTPException(status_code=404, detail="Companion endpoint not supported")
@@ -1192,6 +1212,7 @@ def get_stats(
     week_number: Optional[int] = Query(default=None),
     season_number: Optional[int] = Query(default=None),
     player_id: Optional[int] = Query(default=None),
+    season_type: Optional[str] = Query(default=None),
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
@@ -1202,6 +1223,8 @@ def get_stats(
         query = query.where(PlayerStats.season_number == season_number)
     if player_id is not None:
         query = query.where(PlayerStats.player_id == player_id)
+    if season_type is not None:
+        query = query.where(PlayerStats.season_type == season_type)
     stats = session.exec(query).all()
     return [stat.model_dump() for stat in stats]
 
