@@ -1117,5 +1117,124 @@ class ApiIngestTests(unittest.TestCase):
         self.assertIn("Madden League ID: Not set", response.text)
 
 
+    def test_companion_stats_season_type_stored_from_url_path(self):
+        """Stats posted via /week/{week_type}/... must have season_type set accordingly."""
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+
+        season_configs = [
+            ("pre", 201),
+            ("reg", 202),
+            ("post", 203),
+        ]
+        for week_type, player_id in season_configs:
+            self.client.post(
+                f"/xbsx/22006264/week/{week_type}/1/passing",
+                json={
+                    "content": {
+                        "playerPassingStatInfoList": [
+                            {
+                                "rosterId": player_id,
+                                "seasonIndex": 1,
+                                "weekIndex": 0,
+                                "passYds": 200,
+                                "passTDs": 1,
+                                "passInts": 0,
+                            }
+                        ]
+                    }
+                },
+            )
+
+        with Session(main.engine) as session:
+            stats = session.exec(
+                select(main.PlayerStats).where(main.PlayerStats.league_id == 1)
+            ).all()
+            season_types = {s.season_type for s in stats}
+            self.assertEqual(season_types, {"pre", "reg", "post"})
+
+    def test_get_stats_season_type_filter_returns_only_matching_rows(self):
+        """GET /api/{league_id}/stats?season_type=reg must return only regular-season rows."""
+        self.create_league(api_key="filter-key")
+
+        with Session(main.engine) as session:
+            session.add(main.PlayerStats(league_id=1, player_id=1, week_number=1, season_number=1, season_type="pre", pass_yards=100))
+            session.add(main.PlayerStats(league_id=1, player_id=2, week_number=1, season_number=1, season_type="reg", pass_yards=200))
+            session.add(main.PlayerStats(league_id=1, player_id=3, week_number=1, season_number=1, season_type="post", pass_yards=300))
+            session.add(main.PlayerStats(league_id=1, player_id=4, week_number=2, season_number=1, season_type=None, pass_yards=400))
+            session.commit()
+
+        response = self.client.get("/api/1/stats?key=filter-key&season_type=reg")
+        self.assertEqual(response.status_code, 200)
+        stats = response.json()
+        self.assertEqual(len(stats), 1)
+        self.assertEqual(stats[0]["player_id"], 2)
+        self.assertEqual(stats[0]["pass_yards"], 200)
+        self.assertEqual(stats[0]["season_type"], "reg")
+
+    def test_get_stats_without_season_type_filter_returns_all_rows(self):
+        """GET /api/{league_id}/stats with no season_type filter must return all rows including NULL."""
+        self.create_league(api_key="filter-key")
+
+        with Session(main.engine) as session:
+            session.add(main.PlayerStats(league_id=1, player_id=1, week_number=1, season_number=1, season_type="reg", pass_yards=200))
+            session.add(main.PlayerStats(league_id=1, player_id=4, week_number=2, season_number=1, season_type=None, pass_yards=400))
+            session.commit()
+
+        response = self.client.get("/api/1/stats?key=filter-key")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 2)
+
+    def test_existing_rows_null_season_type_are_unaffected_by_filter(self):
+        """Rows inserted without season_type must have season_type=NULL and not appear in filtered queries."""
+        self.create_league(api_key="null-key")
+
+        self.client.post(
+            "/api/1/stats?key=null-key",
+            json=[{"player_id": 99, "week_number": 1, "season_number": 1, "pass_yards": 150}],
+        )
+
+        with Session(main.engine) as session:
+            stat = session.exec(
+                select(main.PlayerStats).where(main.PlayerStats.player_id == 99, main.PlayerStats.league_id == 1)
+            ).first()
+            self.assertIsNotNone(stat)
+            self.assertIsNone(stat.season_type)
+
+        filtered = self.client.get("/api/1/stats?key=null-key&season_type=reg")
+        self.assertEqual(filtered.status_code, 200)
+        self.assertEqual(len(filtered.json()), 0)
+
+    def test_companion_receiving_stats_season_type_stored_from_url_path(self):
+        """Receiving stats posted via /week/{week_type}/... must have season_type set."""
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+
+        self.client.post(
+            "/xbsx/22006264/week/pre/1/receiving",
+            json={
+                "content": {
+                    "playerReceivingStatInfoList": [
+                        {
+                            "rosterId": 50,
+                            "seasonIndex": 1,
+                            "weekIndex": 0,
+                            "recYds": 80,
+                            "recTDs": 1,
+                            "recCatches": 5,
+                        }
+                    ]
+                }
+            },
+        )
+
+        with Session(main.engine) as session:
+            stat = session.exec(
+                select(main.PlayerStats).where(
+                    main.PlayerStats.league_id == 1,
+                    main.PlayerStats.player_id == 50,
+                )
+            ).first()
+            self.assertIsNotNone(stat)
+            self.assertEqual(stat.season_type, "pre")
+
 if __name__ == "__main__":
     unittest.main()
