@@ -119,9 +119,6 @@ class Standing(SQLModel, table=True):
     seed: Optional[int] = None
 
 class PlayerStats(SQLModel, table=True):
-    __table_args__ = (
-        UniqueConstraint("league_id", "player_id", "week_number", "season_number", name="uq_playerstats_league_player_week_season"),
-    )
     id: Optional[int] = Field(default=None, primary_key=True)
     league_id: int = Field(foreign_key="league.id")
     player_id: Optional[int] = Field(default=None)
@@ -605,7 +602,7 @@ def ingest_companion_stats(league_id: int, stats: List[PlayerStatsIn], session: 
             stmt = pg_insert(PlayerStats).values(league_id=league_id, **payload)
             update_fields = {k: stmt.excluded[k] for k in payload if k not in ("id", "player_id", "week_number", "season_number", "league_id")}
             stmt = stmt.on_conflict_do_update(
-                constraint="uq_playerstats_league_player_week_season",
+                index_elements=["league_id", "player_id", "week_number", "season_number"],
                 set_=update_fields,
                 where=(PlayerStats.__table__.c.league_id == stmt.excluded.league_id),
             )
