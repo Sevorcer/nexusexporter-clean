@@ -1236,5 +1236,142 @@ class ApiIngestTests(unittest.TestCase):
             self.assertIsNotNone(stat)
             self.assertEqual(stat.season_type, "pre")
 
+    def test_companion_standings_season_type_stored_from_url_path(self):
+        """Standings posted via /week/{week_type}/... companion path must store season_type."""
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+
+        # Post preseason standings via a week/pre path
+        self.client.post(
+            "/xbsx/22006264/week/pre/1/standings",
+            json={
+                "content": {
+                    "teamStandingInfoList": [
+                        {"teamId": 10, "totalWins": 1, "totalLosses": 3, "totalTies": 0, "seed": 8}
+                    ]
+                }
+            },
+        )
+
+        with Session(main.engine) as session:
+            standing = session.exec(
+                select(main.Standing).where(main.Standing.league_id == 1)
+            ).first()
+            self.assertIsNotNone(standing)
+            self.assertEqual(standing.season_type, "pre")
+
+    def test_companion_schedule_season_type_stored_from_url_path(self):
+        """Schedule posted via /week/{week_type}/... companion path must store season_type."""
+        self.create_league(api_key="companion-key", madden_league_id="22006264")
+
+        self.client.post(
+            "/xbsx/22006264/week/reg/1/schedules",
+            json={
+                "content": {
+                    "gameScheduleInfoList": [
+                        {
+                            "scheduleId": 42,
+                            "weekIndex": 0,
+                            "seasonIndex": 1,
+                            "homeTeamId": 10,
+                            "awayTeamId": 20,
+                            "homeScore": 21,
+                            "awayScore": 14,
+                            "status": "Final",
+                        }
+                    ]
+                }
+            },
+        )
+
+        with Session(main.engine) as session:
+            schedule = session.exec(
+                select(main.Schedule).where(main.Schedule.league_id == 1)
+            ).first()
+            self.assertIsNotNone(schedule)
+            self.assertEqual(schedule.season_type, "reg")
+
+    def test_get_standings_season_type_filter_returns_only_matching_rows(self):
+        """GET /api/{league_id}/standings?season_type=reg must return only regular-season rows."""
+        self.create_league(api_key="st-key")
+
+        with Session(main.engine) as session:
+            session.add(main.Standing(league_id=1, team_id=1, wins=3, losses=1, season_type="pre"))
+            session.add(main.Standing(league_id=1, team_id=2, wins=5, losses=3, season_type="reg"))
+            session.add(main.Standing(league_id=1, team_id=3, wins=2, losses=6, season_type=None))
+            session.commit()
+
+        response = self.client.get("/api/1/standings?key=st-key&season_type=reg")
+        self.assertEqual(response.status_code, 200)
+        standings = response.json()
+        self.assertEqual(len(standings), 1)
+        self.assertEqual(standings[0]["team_id"], 2)
+        self.assertEqual(standings[0]["season_type"], "reg")
+
+    def test_get_standings_without_season_type_filter_returns_all_rows(self):
+        """GET /api/{league_id}/standings with no season_type filter must return all rows."""
+        self.create_league(api_key="st-key")
+
+        with Session(main.engine) as session:
+            session.add(main.Standing(league_id=1, team_id=1, wins=3, losses=1, season_type="pre"))
+            session.add(main.Standing(league_id=1, team_id=2, wins=5, losses=3, season_type="reg"))
+            session.add(main.Standing(league_id=1, team_id=3, wins=2, losses=6, season_type=None))
+            session.commit()
+
+        response = self.client.get("/api/1/standings?key=st-key")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 3)
+
+    def test_get_schedules_season_type_filter_returns_only_matching_rows(self):
+        """GET /api/{league_id}/schedules?season_type=reg must return only regular-season rows."""
+        self.create_league(api_key="sch-key")
+
+        with Session(main.engine) as session:
+            session.add(main.Schedule(league_id=1, week_number=1, season_number=1, is_complete=False, season_type="pre"))
+            session.add(main.Schedule(league_id=1, week_number=1, season_number=1, is_complete=True, season_type="reg"))
+            session.add(main.Schedule(league_id=1, week_number=1, season_number=1, is_complete=False, season_type=None))
+            session.commit()
+
+        response = self.client.get("/api/1/schedules?key=sch-key&season_type=reg")
+        self.assertEqual(response.status_code, 200)
+        schedules = response.json()
+        self.assertEqual(len(schedules), 1)
+        self.assertTrue(schedules[0]["is_complete"])
+        self.assertEqual(schedules[0]["season_type"], "reg")
+
+    def test_get_schedules_without_season_type_filter_returns_all_rows(self):
+        """GET /api/{league_id}/schedules with no season_type filter must return all rows."""
+        self.create_league(api_key="sch-key")
+
+        with Session(main.engine) as session:
+            session.add(main.Schedule(league_id=1, week_number=1, season_number=1, is_complete=False, season_type="pre"))
+            session.add(main.Schedule(league_id=1, week_number=2, season_number=1, is_complete=True, season_type="reg"))
+            session.add(main.Schedule(league_id=1, week_number=3, season_number=1, is_complete=False, season_type=None))
+            session.commit()
+
+        response = self.client.get("/api/1/schedules?key=sch-key")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 3)
+
+    def test_existing_standings_null_season_type_unaffected_by_filter(self):
+        """Standings inserted without season_type must have season_type=NULL and not appear in filtered queries."""
+        self.create_league(api_key="null-st-key")
+
+        self.client.post(
+            "/api/1/standings?key=null-st-key",
+            json=[{"team_id": 7, "wins": 4, "losses": 2}],
+        )
+
+        with Session(main.engine) as session:
+            standing = session.exec(
+                select(main.Standing).where(main.Standing.league_id == 1)
+            ).first()
+            self.assertIsNotNone(standing)
+            self.assertIsNone(standing.season_type)
+
+        filtered = self.client.get("/api/1/standings?key=null-st-key&season_type=reg")
+        self.assertEqual(filtered.status_code, 200)
+        self.assertEqual(len(filtered.json()), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
