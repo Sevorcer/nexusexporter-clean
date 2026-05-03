@@ -104,6 +104,7 @@ class Schedule(SQLModel, table=True):
     home_score: Optional[int] = None
     away_score: Optional[int] = None
     is_complete: bool = False
+    season_type: Optional[str] = None
 
 class Standing(SQLModel, table=True):
     __table_args__ = (
@@ -117,6 +118,7 @@ class Standing(SQLModel, table=True):
     ties: Optional[int] = None
     division_name: Optional[str] = None
     seed: Optional[int] = None
+    season_type: Optional[str] = None
 
 class PlayerStats(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -170,6 +172,7 @@ class StandingIn(SQLModel):
     ties: Optional[int] = None
     division_name: Optional[str] = None
     seed: Optional[int] = None
+    season_type: Optional[str] = None
 
 class ScheduleIn(SQLModel):
     id: Optional[int] = None
@@ -180,6 +183,7 @@ class ScheduleIn(SQLModel):
     home_score: Optional[int] = None
     away_score: Optional[int] = None
     is_complete: bool = False
+    season_type: Optional[str] = None
 
 class PlayerStatsIn(SQLModel):
     id: Optional[int] = None
@@ -268,6 +272,12 @@ def create_db():
             # Existing rows will remain NULL; new rows will be populated from the URL path.
             connection.exec_driver_sql(
                 "ALTER TABLE playerstats ADD COLUMN IF NOT EXISTS season_type VARCHAR"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE standing ADD COLUMN IF NOT EXISTS season_type VARCHAR"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE schedule ADD COLUMN IF NOT EXISTS season_type VARCHAR"
             )
 create_db()
 
@@ -429,7 +439,7 @@ def _extract_companion_rows(payload: Any) -> Tuple[Optional[Literal["standings",
     raise HTTPException(status_code=422, detail="Invalid companion payload format")
 
 
-def _transform_madden_standings(rows: List[Dict[str, Any]]) -> Tuple[List[StandingIn], List[TeamIn]]:
+def _transform_madden_standings(rows: List[Dict[str, Any]], week_type: Optional[str] = None) -> Tuple[List[StandingIn], List[TeamIn]]:
     standings: List[StandingIn] = []
     teams: List[TeamIn] = []
     for row in rows:
@@ -442,6 +452,7 @@ def _transform_madden_standings(rows: List[Dict[str, Any]]) -> Tuple[List[Standi
                 ties=_to_int(_pick(row, "totalTies", "ties")),
                 division_name=_pick(row, "divisionName", "division_name"),
                 seed=_to_int(_pick(row, "seed")),
+                season_type=week_type,
             )
         )
         if team_id is not None:
@@ -493,7 +504,7 @@ def _transform_madden_roster(rows: List[Dict[str, Any]]) -> List[PlayerIn]:
     return players
 
 
-def _transform_madden_schedule(rows: List[Dict[str, Any]]) -> List[ScheduleIn]:
+def _transform_madden_schedule(rows: List[Dict[str, Any]], week_type: Optional[str] = None) -> List[ScheduleIn]:
     schedules: List[ScheduleIn] = []
     for row in rows:
         status = _pick(row, "status")
@@ -509,6 +520,7 @@ def _transform_madden_schedule(rows: List[Dict[str, Any]]) -> List[ScheduleIn]:
                 home_score=_to_int(_pick(row, "homeScore", "home_score")),
                 away_score=_to_int(_pick(row, "awayScore", "away_score")),
                 is_complete=is_complete or bool(_pick(row, "is_complete")),
+                season_type=week_type,
             )
         )
     return schedules
@@ -675,7 +687,7 @@ def ingest_companion_payload(
     )
 
     if payload_type == "standings":
-        standings, teams_from_standings = _transform_madden_standings(rows)
+        standings, teams_from_standings = _transform_madden_standings(rows, week_type=week_type)
         _upsert_teams_from_standings(league.id, teams_from_standings, session)
         return ingest_standings(league.id, league.api_key, standings, session)
     if payload_type == "roster":
@@ -689,7 +701,7 @@ def ingest_companion_payload(
             free_agents_only=is_free_agents_roster_path,
         )
     if payload_type == "schedule":
-        schedules = _transform_madden_schedule(rows)
+        schedules = _transform_madden_schedule(rows, week_type=week_type)
         return ingest_schedules(league.id, league.api_key, schedules, session)
     if payload_type in {"passing", "rushing", "defense", "receiving"}:
         stats = (
@@ -1176,10 +1188,14 @@ def get_rosters(
 def get_standings(
     league_id: int,
     key: str = Query(...),
+    season_type: Optional[str] = Query(default=None),
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
-    standings = session.exec(select(Standing).where(Standing.league_id == league_id)).all()
+    query = select(Standing).where(Standing.league_id == league_id)
+    if season_type is not None:
+        query = query.where(Standing.season_type == season_type)
+    standings = session.exec(query).all()
     standings = sorted(standings, key=lambda s: (s.wins or 0), reverse=True)
     return [standing.model_dump() for standing in standings]
 
@@ -1190,6 +1206,7 @@ def get_schedules(
     key: str = Query(...),
     week_number: Optional[int] = Query(default=None),
     season_number: Optional[int] = Query(default=None),
+    season_type: Optional[str] = Query(default=None),
     session: Session = Depends(get_session),
 ):
     validate_api_key(league_id, key, session)
@@ -1198,6 +1215,8 @@ def get_schedules(
         query = query.where(Schedule.week_number == week_number)
     if season_number is not None:
         query = query.where(Schedule.season_number == season_number)
+    if season_type is not None:
+        query = query.where(Schedule.season_type == season_type)
     schedules = session.exec(query).all()
     return [schedule.model_dump() for schedule in schedules]
 
