@@ -817,16 +817,23 @@ def build_stat_leaders(
 # ----------- ROUTES -----------
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, session: Session = Depends(get_session)):
+def home(request: Request, session: Session = Depends(get_session)):
     user = get_current_user(request, session)
-    leagues = []
     error = request.session.pop("flash_error", None)
-    flash_msg = request.session.pop("flash_msg", None)
-    if not user:
-        return RedirectResponse("/login", status_code=303)
-    leagues = session.exec(select(League).where(League.user_id == user.id)).all()
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request, "user": user, "leagues": leagues, "error": error, "flash_msg": flash_msg
+    discord_auth_url = "https://discord.com/api/oauth2/authorize?" + urlencode({
+        "client_id": DISCORD_CLIENT_ID,
+        "redirect_uri": DISCORD_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "identify"
+    })
+    if user:
+        flash_msg = request.session.pop("flash_msg", None)
+        leagues = session.exec(select(League).where(League.user_id == user.id)).all()
+        return templates.TemplateResponse("dashboard.html", {
+            "request": request, "user": user, "leagues": leagues, "error": error, "flash_msg": flash_msg
+        })
+    return templates.TemplateResponse("home.html", {
+        "request": request, "user": None, "discord_auth_url": discord_auth_url, "error": error
     })
 
 @app.get("/login", response_class=HTMLResponse)
