@@ -98,6 +98,20 @@
             white-space: nowrap;
         }
         .btn-save:hover { background: #00c853; color: #0f1117; }
+        /* Stats badges */
+        .league-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+        .stat-badge {
+            background: #0f1117; border: 1px solid #2d3147; color: #a0aec0;
+            font-size: 0.78rem; padding: 4px 10px; border-radius: 20px; white-space: nowrap;
+        }
+        /* Quick action buttons */
+        .quick-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+        .btn-quick {
+            background: transparent; border: 1px solid #3d4155; color: #a0aec0;
+            padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; text-decoration: none;
+            transition: border-color 0.2s, color 0.2s, background 0.2s; white-space: nowrap;
+        }
+        .btn-quick:hover { border-color: #00c853; color: #00c853; background: rgba(0,200,83,0.06); }
         /* Empty state */
         .empty-state { text-align: center; color: #7f8ea3; padding: 48px 24px; }
         /* Create new league section */
@@ -120,9 +134,90 @@
             white-space: nowrap;
         }
         .btn-create:hover { background: #00e65e; }
+        /* Setup Guide Panel */
+        .setup-guide-toggle {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: #1a1d2e; border: 1px solid #2d3147; color: #e2e8f0;
+            padding: 10px 20px; border-radius: 10px; font-size: 0.95rem; font-weight: 600;
+            cursor: pointer; margin-top: 32px; margin-bottom: 0; transition: border-color 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .setup-guide-toggle:hover { border-color: #00c853; color: #00c853; }
+        .setup-guide-panel {
+            background: #1a1d2e; border: 1px solid #2d3147; border-radius: 12px;
+            margin-top: 12px; overflow: hidden;
+        }
+        .guide-tabs {
+            display: flex; border-bottom: 1px solid #2d3147; background: #12151f;
+        }
+        .guide-tab {
+            padding: 12px 20px; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+            color: #7f8ea3; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s;
+            white-space: nowrap; background: none; border-top: none; border-left: none; border-right: none;
+            font-family: 'Inter', sans-serif;
+        }
+        .guide-tab.active { color: #00c853; border-bottom-color: #00c853; }
+        .guide-tab-content { display: none; padding: 24px; }
+        .guide-tab-content.active { display: block; }
+        /* Checklist */
+        .checklist-league { margin-bottom: 24px; }
+        .checklist-league-name { font-weight: 700; font-size: 0.95rem; color: #e2e8f0; margin-bottom: 10px; }
+        .checklist-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 8px 0; border-bottom: 1px solid #1e2235; font-size: 0.88rem;
+        }
+        .checklist-item:last-child { border-bottom: none; }
+        .check-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+        .check-label { color: #e2e8f0; }
+        .check-hint { font-size: 0.78rem; color: #7f8ea3; margin-top: 2px; }
+        .check-hint a { color: #00c853; text-decoration: none; }
+        .check-hint a:hover { text-decoration: underline; }
+        /* Resources grid */
+        .resources-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;
+        }
+        .resource-card {
+            background: #12151f; border: 1px solid #2d3147; border-radius: 10px; padding: 16px;
+        }
+        .resource-card-icon { font-size: 1.5rem; margin-bottom: 8px; }
+        .resource-card-title { font-weight: 700; font-size: 0.9rem; color: #e2e8f0; margin-bottom: 4px; }
+        .resource-card-desc { font-size: 0.82rem; color: #7f8ea3; margin-bottom: 10px; line-height: 1.5; }
+        .resource-card a { font-size: 0.82rem; color: #00c853; text-decoration: none; }
+        .resource-card a:hover { text-decoration: underline; }
+        .resource-card code {
+            display: block; background: #0f1117; border: 1px solid #2d3147; border-radius: 6px;
+            padding: 6px 10px; font-size: 0.8rem; color: #a0aec0; margin-top: 6px; word-break: break-all;
+        }
+        .cmd-ref { font-size: 0.82rem; }
+        .cmd-ref code {
+            display: inline; background: #0f1117; border: 1px solid #2d3147; border-radius: 4px;
+            padding: 2px 6px; font-size: 0.8rem; color: #a0aec0;
+        }
+        .cmd-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+        .cmd-desc { color: #7f8ea3; }
+        /* Code block */
+        .code-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .code-panel-title { font-size: 1rem; font-weight: 700; color: #e2e8f0; }
+        .btn-copy-code {
+            background: transparent; border: 1px solid #3d4155; color: #a0aec0;
+            padding: 6px 14px; border-radius: 6px; font-size: 0.82rem; cursor: pointer;
+            transition: border-color 0.2s, color 0.2s; font-family: 'Inter', sans-serif;
+        }
+        .btn-copy-code:hover { border-color: #00c853; color: #00c853; }
+        .code-block {
+            background: #0a0c14; border: 1px solid #2d3147; border-radius: 10px;
+            padding: 20px; overflow-x: auto; font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.82rem; line-height: 1.7; color: #c9d1d9;
+        }
+        .code-block .c { color: #6a737d; } /* comments */
+        .code-block .s { color: #a5d6a7; } /* strings */
+        .code-block .k { color: #79b8ff; } /* keywords */
+        .code-block .fn { color: #b392f0; } /* function names */
         @media (max-width: 600px) {
             .page-header { flex-direction: column; align-items: flex-start; }
             .leagues-grid { grid-template-columns: 1fr; }
+            .guide-tabs { overflow-x: auto; }
+            .resources-grid { grid-template-columns: 1fr; }
         }
     </style>
     <script>
@@ -133,6 +228,26 @@
                 el.style.display = "inline";
                 setTimeout(() => { el.style.display = "none" }, 1200);
             }
+        }
+        function toggleSetupGuide() {
+            const panel = document.getElementById("setup-guide-panel");
+            const btn = document.getElementById("setup-guide-toggle");
+            const isHidden = panel.style.display === "none" || panel.style.display === "";
+            panel.style.display = isHidden ? "block" : "none";
+            btn.textContent = isHidden ? "⚡ Setup Guide ▲" : "⚡ Setup Guide ▾";
+        }
+        function switchTab(tabId) {
+            document.querySelectorAll(".guide-tab").forEach(t => t.classList.remove("active"));
+            document.querySelectorAll(".guide-tab-content").forEach(c => c.classList.remove("active"));
+            document.querySelector(".guide-tab[data-tab='" + tabId + "']").classList.add("active");
+            document.getElementById("tab-" + tabId).classList.add("active");
+        }
+        function copyAgentCode() {
+            const code = document.getElementById("agent-code").innerText;
+            navigator.clipboard.writeText(code);
+            const btn = document.getElementById("btn-copy-agent");
+            btn.textContent = "✓ Copied!";
+            setTimeout(() => { btn.textContent = "📋 Copy Code"; }, 1500);
         }
     </script>
 </head>
@@ -163,10 +278,26 @@
         {% if leagues %}
             <div class="leagues-grid">
                 {% for league in leagues %}
+                    {% set meta = league_meta.get(league.id, {}) %}
                     <div class="league-card">
                         <div class="league-name">{{ league.name }}</div>
 
-                        <a href="/league/{{ league.id }}" class="btn-view">View Dashboard →</a>
+                        <!-- Stats badges -->
+                        <div class="league-stats">
+                            <span class="stat-badge">🏟️ {{ meta.get('teams_count', 0) }} Teams</span>
+                            <span class="stat-badge">👤 {{ meta.get('players_count', 0) }} Players</span>
+                            <span class="stat-badge">📅 Week {{ meta.get('current_week', 0) }}</span>
+                        </div>
+
+                        <!-- Quick actions -->
+                        <div class="quick-actions">
+                            <a href="/league/{{ league.id }}/standings" class="btn-quick">🏆 Standings</a>
+                            <a href="/league/{{ league.id }}/schedule" class="btn-quick">📅 Schedule</a>
+                            <a href="/league/{{ league.id }}/leaders" class="btn-quick">📊 Leaders</a>
+                            <a href="/league/{{ league.id }}/roster" class="btn-quick">👥 Roster</a>
+                        </div>
+
+                        <a href="/league/{{ league.id }}" class="btn-view">View Full Dashboard →</a>
 
                         <div>
                             <div class="api-key-label">API Key</div>
@@ -211,6 +342,184 @@
                     <button type="submit" class="btn-create">Create</button>
                 </div>
             </form>
+        </div>
+
+        <!-- Setup Guide Toggle -->
+        <button id="setup-guide-toggle" class="setup-guide-toggle" onclick="toggleSetupGuide()">⚡ Setup Guide ▾</button>
+
+        <!-- Setup Guide Panel -->
+        <div id="setup-guide-panel" class="setup-guide-panel" style="display:none">
+            <div class="guide-tabs">
+                <button class="guide-tab active" data-tab="checklist" onclick="switchTab('checklist')">✅ Setup Checklist</button>
+                <button class="guide-tab" data-tab="resources" onclick="switchTab('resources')">📚 Resources &amp; Links</button>
+                <button class="guide-tab" data-tab="aiagent" onclick="switchTab('aiagent')">🤖 AI Agent Code</button>
+            </div>
+
+            <!-- Tab 1: Setup Checklist -->
+            <div id="tab-checklist" class="guide-tab-content active">
+                {% if leagues %}
+                    {% for league in leagues %}
+                        {% set meta = league_meta.get(league.id, {}) %}
+                        <div class="checklist-league">
+                            <div class="checklist-league-name">{{ league.name }}</div>
+                            <div class="checklist-item">
+                                <span class="check-icon">✅</span>
+                                <div><div class="check-label">League created</div></div>
+                            </div>
+                            <div class="checklist-item">
+                                <span class="check-icon">{% if league.madden_league_id %}✅{% else %}⬜{% endif %}</span>
+                                <div>
+                                    <div class="check-label">Madden League ID set</div>
+                                    {% if not league.madden_league_id %}
+                                        <div class="check-hint">Enter your Madden League ID in the league card above and click Save.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="checklist-item">
+                                <span class="check-icon">{% if meta.get('has_data') %}✅{% else %}⬜{% endif %}</span>
+                                <div>
+                                    <div class="check-label">Data exported (teams &amp; players found)</div>
+                                    {% if not meta.get('has_data') %}
+                                        <div class="check-hint">Open the <a href="https://www.ea.com/games/madden-nfl/companion" target="_blank">Madden Companion App</a>, navigate to your franchise, and export data using your API key above.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="checklist-item">
+                                <span class="check-icon">{% if meta.get('has_standings') %}✅{% else %}⬜{% endif %}</span>
+                                <div>
+                                    <div class="check-label">Standings data available</div>
+                                    {% if not meta.get('has_standings') %}
+                                        <div class="check-hint">Export standings from the Madden Companion App after completing at least one week.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="checklist-item">
+                                <span class="check-icon">⬜</span>
+                                <div>
+                                    <div class="check-label">Discord bot connected</div>
+                                    <div class="check-hint">Contact your admin for the bot invite link to add the NexusLeague bot to your Discord server.</div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="color:#7f8ea3; font-size:0.9rem;">Create your first league above to get started!</p>
+                {% endif %}
+            </div>
+
+            <!-- Tab 2: Resources & Links -->
+            <div id="tab-resources" class="guide-tab-content">
+                <div class="resources-grid">
+                    <div class="resource-card">
+                        <div class="resource-card-icon">📖</div>
+                        <div class="resource-card-title">Madden Companion App</div>
+                        <div class="resource-card-desc">Required to export your franchise data from Madden.</div>
+                        <a href="https://www.ea.com/games/madden-nfl/companion" target="_blank">Open Companion App →</a>
+                    </div>
+                    <div class="resource-card">
+                        <div class="resource-card-icon">🤖</div>
+                        <div class="resource-card-title">Add Bot to Discord</div>
+                        <div class="resource-card-desc">Invite the NexusLeague bot to your Discord server. Contact your admin for the invite link.</div>
+                    </div>
+                    <div class="resource-card">
+                        <div class="resource-card-icon">📋</div>
+                        <div class="resource-card-title">Discord Bot Commands</div>
+                        <div class="resource-card-desc">Slash commands available in Discord:</div>
+                        <div class="cmd-ref">
+                            <div class="cmd-row"><code>/standings</code><span class="cmd-desc">View league standings</span></div>
+                            <div class="cmd-row"><code>/schedule</code><span class="cmd-desc">View weekly schedule</span></div>
+                            <div class="cmd-row"><code>/leaders</code><span class="cmd-desc">View stat leaders</span></div>
+                            <div class="cmd-row"><code>/roster</code><span class="cmd-desc">View team roster</span></div>
+                            <div class="cmd-row"><code>/player</code><span class="cmd-desc">Look up a player</span></div>
+                        </div>
+                    </div>
+                    <div class="resource-card">
+                        <div class="resource-card-icon">🔑</div>
+                        <div class="resource-card-title">Your API Key</div>
+                        <div class="resource-card-desc">Use this key to connect the Madden companion app to NexusLeague. Find it in your league card above.</div>
+                    </div>
+                    <div class="resource-card">
+                        <div class="resource-card-icon">📡</div>
+                        <div class="resource-card-title">API Endpoint</div>
+                        <div class="resource-card-desc">Your export URL for the companion app:</div>
+                        <code>https://nexusexporter-clean-production.up.railway.app</code>
+                    </div>
+                    <div class="resource-card">
+                        <div class="resource-card-icon">❓</div>
+                        <div class="resource-card-title">Support</div>
+                        <div class="resource-card-desc">Need help? Join our Discord community for assistance and updates.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: AI Agent Code -->
+            <div id="tab-aiagent" class="guide-tab-content">
+                <div class="code-panel-header">
+                    <div class="code-panel-title">Python AI Agent Integration</div>
+                    <button id="btn-copy-agent" class="btn-copy-code" onclick="copyAgentCode()">📋 Copy Code</button>
+                </div>
+                <pre class="code-block"><code id="agent-code"><span class="c"># NexusLeague AI Agent Configuration</span>
+<span class="c"># Add these environment variables to your .env or hosting platform:</span>
+
+<span class="s">OPENAI_API_KEY</span>=your_openai_api_key_here
+<span class="s">NEXUS_API_KEY</span>=your_league_api_key_here  <span class="c"># Found in your league card above</span>
+<span class="s">NEXUS_BASE_URL</span>=https://nexusexporter-clean-production.up.railway.app
+<span class="s">NEXUS_LEAGUE_ID</span>=your_league_id_here
+
+<span class="c"># ─── Fetch League Data ───────────────────────────────────────────────</span>
+<span class="k">import</span> httpx
+
+BASE = <span class="s">"https://nexusexporter-clean-production.up.railway.app"</span>
+API_KEY = <span class="s">"your_league_api_key"</span>
+LEAGUE_ID = <span class="s">1</span>  <span class="c"># Replace with your league ID</span>
+
+<span class="k">def</span> <span class="fn">fetch_standings</span>():
+    r = httpx.get(<span class="s">f"{BASE}/api/{LEAGUE_ID}/standings"</span>, params={<span class="s">"key"</span>: API_KEY})
+    <span class="k">return</span> r.json()
+
+<span class="k">def</span> <span class="fn">fetch_stat_leaders</span>():
+    r = httpx.get(<span class="s">f"{BASE}/api/{LEAGUE_ID}/stat_leaders"</span>, params={<span class="s">"key"</span>: API_KEY})
+    <span class="k">return</span> r.json()
+
+<span class="k">def</span> <span class="fn">fetch_schedule</span>():
+    r = httpx.get(<span class="s">f"{BASE}/api/{LEAGUE_ID}/schedules"</span>, params={<span class="s">"key"</span>: API_KEY})
+    <span class="k">return</span> r.json()
+
+<span class="k">def</span> <span class="fn">fetch_rosters</span>():
+    r = httpx.get(<span class="s">f"{BASE}/api/{LEAGUE_ID}/rosters"</span>, params={<span class="s">"key"</span>: API_KEY})
+    <span class="k">return</span> r.json()
+
+<span class="c"># ─── Generate AI Headline ────────────────────────────────────────────</span>
+<span class="k">from</span> openai <span class="k">import</span> OpenAI
+
+client = <span class="fn">OpenAI</span>()
+
+<span class="k">def</span> <span class="fn">generate_headline</span>(standings, leaders):
+    prompt = <span class="s">f"""
+    You are an NFL sports journalist covering a Madden franchise league.
+
+    Current Standings (top teams):
+    {standings[:5]}
+
+    Stat Leaders:
+    Passing: {leaders.get('pass_yards', [{}])[0]}
+    Rushing: {leaders.get('rush_yards', [{}])[0]}
+
+    Write a compelling 2-3 sentence league headline recap.
+    """</span>
+    response = client.chat.completions.<span class="fn">create</span>(
+        model=<span class="s">"gpt-4o-mini"</span>,
+        messages=[{<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: prompt}]
+    )
+    <span class="k">return</span> response.choices[<span class="s">0</span>].message.content
+
+<span class="c"># ─── Example Usage ───────────────────────────────────────────────────</span>
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    standings = <span class="fn">fetch_standings</span>()
+    leaders = <span class="fn">fetch_stat_leaders</span>()
+    headline = <span class="fn">generate_headline</span>(standings, leaders)
+    <span class="fn">print</span>(headline)</code></pre>
+            </div>
         </div>
     </div>
 </body>

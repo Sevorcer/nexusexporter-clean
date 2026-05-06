@@ -11,7 +11,7 @@ from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import SQLModel, Field, Relationship, Session, select, create_engine, delete
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
@@ -826,14 +826,35 @@ def home(request: Request, session: Session = Depends(get_session)):
         "response_type": "code",
         "scope": "identify"
     })
-    if user:
-        flash_msg = request.session.pop("flash_msg", None)
-        leagues = session.exec(select(League).where(League.user_id == user.id)).all()
-        return templates.TemplateResponse("dashboard.html", {
-            "request": request, "user": user, "leagues": leagues, "error": error, "flash_msg": flash_msg
+    if not user:
+        return templates.TemplateResponse("home.html", {
+            "request": request, "user": None, "discord_auth_url": discord_auth_url, "error": error
         })
-    return templates.TemplateResponse("home.html", {
-        "request": request, "user": None, "discord_auth_url": discord_auth_url, "error": error
+
+    flash_msg = request.session.pop("flash_msg", None)
+    leagues = session.exec(select(League).where(League.user_id == user.id)).all()
+
+    # Build per-league metadata
+    league_meta = {}
+    for league in leagues:
+        lid = league.id
+        teams_count = session.exec(select(func.count()).select_from(Team).where(Team.league_id == lid)).one()
+        players_count = session.exec(select(func.count()).select_from(Player).where(Player.league_id == lid)).one()
+        completed_weeks = session.exec(
+            select(func.max(Schedule.week_number)).where(Schedule.league_id == lid, Schedule.is_complete == True)
+        ).one()
+        has_standings = session.exec(select(func.count()).select_from(Standing).where(Standing.league_id == lid)).one() > 0
+        league_meta[lid] = {
+            "teams_count": teams_count or 0,
+            "players_count": players_count or 0,
+            "current_week": completed_weeks or 0,
+            "has_data": (teams_count or 0) > 0,
+            "has_standings": has_standings,
+        }
+
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request, "user": user, "leagues": leagues,
+        "league_meta": league_meta, "error": error, "flash_msg": flash_msg
     })
 
 @app.get("/login", response_class=HTMLResponse)
