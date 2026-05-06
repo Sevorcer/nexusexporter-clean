@@ -404,13 +404,18 @@
         .footer-logo { font-size: 1rem; font-weight: 700; color: #00c853; }
         .footer-tagline { color: #4a5568; font-size: 0.85rem; margin-top: 4px; }
         .footer-links { display: flex; gap: 24px; }
-        .footer-links a {
+        .footer-links a, .footer-login-btn {
             color: #4a5568;
             font-size: 0.85rem;
             text-decoration: none;
             transition: color 0.2s;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            padding: 0;
         }
-        .footer-links a:hover { color: #a0aec0; }
+        .footer-links a:hover, .footer-login-btn:hover { color: #a0aec0; }
 
         /* ── Responsive ── */
         @media (max-width: 768px) {
@@ -454,7 +459,7 @@
             <a href="/logout" class="btn-logout">Logout</a>
         {% else %}
             <div class="login-dropdown">
-                <button onclick="toggleLogin()" class="btn-login">Login ▾</button>
+                <button onclick="toggleLogin()" class="btn-login" aria-expanded="false" aria-controls="login-panel">Login ▾</button>
                 <div id="login-panel" class="login-panel" style="display:none">
                     <p>Sign in with Discord to manage your leagues</p>
                     <a href="{{ discord_auth_url }}" class="discord-btn">
@@ -469,7 +474,7 @@
                 </div>
             </div>
         {% endif %}
-        <button class="hamburger" onclick="toggleMobile()" aria-label="Menu">
+        <button class="hamburger" onclick="toggleMobile()" aria-label="Menu" aria-expanded="false" aria-controls="mobile-menu">
             <span></span><span></span><span></span>
         </button>
     </div>
@@ -647,7 +652,7 @@
         {% if user %}
             <a href="/dashboard">Dashboard</a>
         {% else %}
-            <a href="#" onclick="toggleLogin(); return false;">Login</a>
+            <button onclick="toggleLogin()" class="footer-login-btn">Login</button>
         {% endif %}
     </div>
 </footer>
@@ -656,18 +661,25 @@
     function toggleLogin() {
         const panel = document.getElementById('login-panel');
         if (!panel) return;
+        const btn = document.querySelector('.btn-login');
         const isOpen = panel.style.display !== 'none';
         panel.style.display = isOpen ? 'none' : 'block';
+        if (btn) btn.setAttribute('aria-expanded', String(!isOpen));
+        if (!isOpen && panel) panel.querySelector('a, button') && panel.querySelector('a, button').focus();
     }
 
     function toggleMobile() {
         const menu = document.getElementById('mobile-menu');
-        menu.classList.toggle('open');
+        const btn = document.querySelector('.hamburger');
+        const isOpen = menu.classList.toggle('open');
+        if (btn) btn.setAttribute('aria-expanded', String(isOpen));
     }
 
     function closeMobile() {
         const menu = document.getElementById('mobile-menu');
+        const btn = document.querySelector('.hamburger');
         menu.classList.remove('open');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
     }
 
     // Close login dropdown when clicking outside
@@ -675,7 +687,9 @@
         const dropdown = document.querySelector('.login-dropdown');
         if (dropdown && !dropdown.contains(e.target)) {
             const panel = document.getElementById('login-panel');
+            const btn = document.querySelector('.btn-login');
             if (panel) panel.style.display = 'none';
+            if (btn) btn.setAttribute('aria-expanded', 'false');
         }
     });
 
@@ -683,7 +697,9 @@
     // Auto-open login panel if there's an error
     window.addEventListener('DOMContentLoaded', function() {
         const panel = document.getElementById('login-panel');
-        if (panel) panel.style.display = 'block';
+        const btn = document.querySelector('.btn-login');
+        if (panel) { panel.style.display = 'block'; }
+        if (btn) btn.setAttribute('aria-expanded', 'true');
     });
     {% endif %}
 </script>
