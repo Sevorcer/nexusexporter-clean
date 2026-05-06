@@ -841,7 +841,7 @@ def home(request: Request, session: Session = Depends(get_session)):
         teams_count = session.exec(select(func.count()).select_from(Team).where(Team.league_id == lid)).one()
         players_count = session.exec(select(func.count()).select_from(Player).where(Player.league_id == lid)).one()
         completed_weeks = session.exec(
-            select(func.max(Schedule.week_number)).where(Schedule.league_id == lid, Schedule.is_complete == True)
+            select(func.max(Schedule.week_number)).where(Schedule.league_id == lid, Schedule.is_complete)
         ).one()
         has_standings = session.exec(select(func.count()).select_from(Standing).where(Standing.league_id == lid)).one() > 0
         league_meta[lid] = {
