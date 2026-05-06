@@ -1,35 +1,164 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>{{ league.name }} - Roster</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ league.name }} – Roster</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+        /* Navbar */
+        .navbar {
+            background: #1a1d2e; border-bottom: 1px solid #2d3147;
+            padding: 0 24px; height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .nav-logo { font-size: 1.25rem; font-weight: 700; color: #00c853; text-decoration: none; }
+        .nav-back { color: #a0aec0; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+        .nav-back:hover { color: #00c853; }
+        /* Container */
+        .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+        .page-header { margin-bottom: 28px; }
+        .page-header h1 { font-size: 1.75rem; font-weight: 700; }
+        .page-header .subtitle { color: #7f8ea3; font-size: 0.9rem; margin-top: 4px; }
+        /* Filter */
+        .filter-bar { margin-bottom: 28px; }
+        .team-filter {
+            background: #1a1d2e; border: 1px solid #2d3147; color: #e2e8f0;
+            padding: 9px 14px; border-radius: 8px; font-family: 'Inter', sans-serif;
+            font-size: 0.9rem; outline: none; cursor: pointer; min-width: 200px;
+        }
+        .team-filter:focus { border-color: #00c853; }
+        /* Team section */
+        .team-section { margin-bottom: 28px; }
+        .team-header {
+            background: #1a1d2e; border: 1px solid #2d3147; border-bottom: none;
+            border-top-left-radius: 10px; border-top-right-radius: 10px;
+            padding: 14px 20px; font-size: 1rem; font-weight: 700; color: #e2e8f0;
+        }
+        .table-wrap {
+            background: #1a1d2e; border: 1px solid #2d3147;
+            border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
+            overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            background: #252840; padding: 10px 14px;
+            font-size: 0.76rem; font-weight: 600; color: #7f8ea3;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            text-align: left; border-bottom: 1px solid #2d3147;
+        }
+        thead th:not(:first-child) { text-align: center; }
+        tbody tr { border-bottom: 1px solid #1e2235; transition: background 0.15s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #1e2235; }
+        tbody td { padding: 11px 14px; font-size: 0.9rem; }
+        tbody td:not(:first-child) { text-align: center; color: #a0aec0; }
+        .player-link { color: #e2e8f0; text-decoration: none; font-weight: 600; transition: color 0.2s; }
+        .player-link:hover { color: #00c853; }
+        /* OVR Badge */
+        .ovr-badge {
+            display: inline-block; font-size: 0.8rem; font-weight: 700;
+            padding: 3px 8px; border-radius: 5px; min-width: 32px; text-align: center;
+        }
+        .ovr-gold { background: rgba(255,215,0,0.18); color: #ffd700; }
+        .ovr-green { background: rgba(0,200,83,0.18); color: #00c853; }
+        .ovr-grey { background: rgba(160,174,192,0.15); color: #a0aec0; }
+        /* Dev trait */
+        .dev-xfactor { color: #ffd700; font-weight: 600; }
+        .dev-superstar { color: #c084fc; font-weight: 600; }
+        @media (max-width: 600px) {
+            .page-header h1 { font-size: 1.3rem; }
+            tbody td, thead th { padding: 9px 8px; font-size: 0.8rem; }
+        }
+    </style>
+    <script>
+        function filterTeam(select) {
+            const val = select.value;
+            document.querySelectorAll('.team-section').forEach(function(section) {
+                if (!val || section.dataset.team === val) {
+                    section.style.display = '';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        }
+    </script>
 </head>
 <body>
-    <h1>{{ league.name }} Rosters</h1>
-    <a href="/league/{{ league.id }}">Back to League</a>
-    {% for team, players in team_players %}
-        <h2>{{ team.team_name or "Unknown Team" }}</h2>
-        <table border="1" cellpadding="6" cellspacing="0">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Position</th>
-                    <th>Overall</th>
-                    <th>Age</th>
-                    <th>Dev Trait</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for player in players %}
-                    <tr>
-                        <td><a href="/league/{{ league.id }}/player/{{ player.id }}">{{ player.first_name or "" }} {{ player.last_name or "" }}</a></td>
-                        <td>{{ player.position or "" }}</td>
-                        <td>{{ player.overall_rating or "" }}</td>
-                        <td>{{ player.age or "" }}</td>
-                        <td>{{ player.dev_trait or "" }}</td>
-                    </tr>
+    <nav class="navbar">
+        <a href="/" class="nav-logo">⚡ NexusLeague</a>
+        <a href="/league/{{ league.id }}" class="nav-back">← {{ league.name }}</a>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>👥 Rosters</h1>
+            <p class="subtitle">{{ league.name }}</p>
+        </div>
+
+        <div class="filter-bar">
+            <select class="team-filter" onchange="filterTeam(this)">
+                <option value="">All Teams</option>
+                {% for team, players in team_players %}
+                    <option value="{{ team.team_name or 'Unknown Team' }}">{{ team.team_name or "Unknown Team" }}</option>
                 {% endfor %}
-            </tbody>
-        </table>
-    {% endfor %}
+            </select>
+        </div>
+
+        {% for team, players in team_players %}
+            <div class="team-section" data-team="{{ team.team_name or 'Unknown Team' }}">
+                <div class="team-header">{{ team.team_name or "Unknown Team" }}</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Pos</th>
+                                <th>OVR</th>
+                                <th>Age</th>
+                                <th>Dev Trait</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in players %}
+                                {% set ovr = player.overall_rating or 0 %}
+                                <tr>
+                                    <td>
+                                        <a class="player-link" href="/league/{{ league.id }}/player/{{ player.id }}">
+                                            {{ player.first_name or "" }} {{ player.last_name or "" }}
+                                        </a>
+                                    </td>
+                                    <td>{{ player.position or "—" }}</td>
+                                    <td>
+                                        {% if ovr >= 90 %}
+                                            <span class="ovr-badge ovr-gold">{{ ovr }}</span>
+                                        {% elif ovr >= 80 %}
+                                            <span class="ovr-badge ovr-green">{{ ovr }}</span>
+                                        {% else %}
+                                            <span class="ovr-badge ovr-grey">{{ ovr if ovr else "—" }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ player.age or "—" }}</td>
+                                    <td>
+                                        {% set dev = player.dev_trait or "" %}
+                                        {% if dev | lower == "xfactor" or dev | lower == "x-factor" %}
+                                            <span class="dev-xfactor">⚡ {{ dev }}</span>
+                                        {% elif dev | lower == "superstar" %}
+                                            <span class="dev-superstar">★ {{ dev }}</span>
+                                        {% else %}
+                                            {{ dev or "—" }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 </body>
 </html>
