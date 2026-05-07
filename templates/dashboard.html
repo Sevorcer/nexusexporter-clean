@@ -316,7 +316,7 @@
   </div>
   <div class="nav-right">
     {% if user.avatar %}
-      <img class="nav-avatar" src="https://cdn.discordapp.com/avatars/{{ user.discord_id }}/{{ user.avatar }}.png" alt="">
+      <img class="nav-avatar" src="https://cdn.discordapp.com/avatars/{{ user.discord_id }}/{{ user.avatar }}.png" alt="{{ user.username }} avatar">
     {% endif %}
     <span class="nav-username">{{ user.username }}</span>
     <a href="/logout" class="btn-logout">Logout</a>
@@ -506,6 +506,7 @@
               <span>https://discord.com/oauth2/authorize?client_id=YOUR_BOT_ID&amp;scope=bot+applications.commands&amp;permissions=8</span>
               <button class="btn-copy" onclick="copyBlock(this)">Copy</button>
             </div>
+            <p style="font-size:.75rem;color:var(--text3);margin:0 0 10px 38px;">Replace <code style="font-family:var(--fm);color:var(--text2);">YOUR_BOT_ID</code> with your actual Discord Application/Bot client ID.</p>
             <ol class="ob-steps-list" style="margin-top:4px;">
               <li>
                 <span class="snum">3</span>
@@ -804,7 +805,8 @@
 
   function copyBlock(btn) {
     const block = btn.parentElement;
-    const text = block.querySelector('span') ? block.querySelector('span').textContent : block.textContent;
+    const spanEl = block.querySelector('span');
+    const text = spanEl ? spanEl.textContent : block.textContent;
     navigator.clipboard.writeText(text.trim());
     const orig = btn.textContent;
     btn.textContent = '✓ Copied';
