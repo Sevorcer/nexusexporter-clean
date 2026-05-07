@@ -503,7 +503,7 @@
             {% if user %}
                 <a href="/dashboard" class="btn-primary">Go to Dashboard →</a>
             {% else %}
-                <button onclick="toggleLogin()" class="btn-primary">Get Started (Login)</button>
+                <a href="{{ discord_auth_url }}" class="btn-primary">Get Started →</a>
             {% endif %}
             <a href="#features" class="btn-secondary">See Features →</a>
         </div>
@@ -652,7 +652,7 @@
         {% if user %}
             <a href="/dashboard">Dashboard</a>
         {% else %}
-            <button onclick="toggleLogin()" class="footer-login-btn">Login</button>
+            <a href="{{ discord_auth_url }}" class="footer-login-btn">Login</a>
         {% endif %}
     </div>
 </footer>
