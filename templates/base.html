@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NexusLeague{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/main.css">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    {% block nav %}
+    <nav class="navbar">
+        <a href="/" class="nav-logo">⚡ NexusLeague</a>
+        <div class="nav-right">
+            {% block nav_right %}{% endblock %}
+        </div>
+    </nav>
+    {% endblock %}
+    <main id="main">
+        {% block body %}{% endblock %}
+    </main>
+    {% block footer %}
+    <footer class="site-footer">
+        <p>NexusLeague &middot; Madden league hub &middot; <a href="/">Home</a></p>
+    </footer>
+    {% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

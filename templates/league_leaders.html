@@ -1,113 +1,108 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ league.name }} – Stat Leaders</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
-        /* Navbar */
-        .navbar {
-            background: #1a1d2e; border-bottom: 1px solid #2d3147;
-            padding: 0 24px; height: 60px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .nav-logo { font-size: 1.25rem; font-weight: 700; color: #00c853; text-decoration: none; }
-        .nav-back { color: #a0aec0; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
-        .nav-back:hover { color: #00c853; }
-        /* Container */
-        .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
-        .page-header { margin-bottom: 32px; }
-        .page-header h1 { font-size: 1.75rem; font-weight: 700; }
-        .page-header .subtitle { color: #7f8ea3; font-size: 0.9rem; margin-top: 4px; }
-        /* Grid */
-        .leaders-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-        }
-        .leader-card {
-            background: #1a1d2e; border: 1px solid #2d3147; border-radius: 12px;
-            overflow: hidden;
-        }
-        .card-header {
-            background: #252840; padding: 14px 20px;
-            font-size: 0.85rem; font-weight: 700; color: #a0aec0;
-            text-transform: uppercase; letter-spacing: 0.07em;
-            border-bottom: 1px solid #2d3147;
-        }
-        .leader-list { list-style: none; padding: 8px 0; }
-        .leader-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 20px; border-bottom: 1px solid #1e2235;
-            transition: background 0.15s;
-        }
-        .leader-item:last-child { border-bottom: none; }
-        .leader-item:hover { background: #1e2235; }
-        .rank {
-            width: 22px; text-align: right; font-size: 0.82rem; font-weight: 700;
-            color: #4a5568; flex-shrink: 0;
-        }
-        .rank-1 { color: #ffd700; }
-        .rank-2 { color: #c0c0c0; }
-        .rank-3 { color: #cd7f32; }
-        .player-name {
-            flex: 1; font-size: 0.9rem; font-weight: 600; color: #e2e8f0;
-            text-decoration: none; transition: color 0.2s;
-        }
-        .player-name:hover { color: #00c853; }
-        .stat-value { font-size: 0.92rem; font-weight: 700; color: #00c853; flex-shrink: 0; }
-        .empty-note { padding: 16px 20px; color: #4a5568; font-size: 0.85rem; }
-        @media (max-width: 600px) {
-            .leaders-grid { grid-template-columns: 1fr; }
-            .page-header h1 { font-size: 1.3rem; }
-        }
-    </style>
-</head>
-<body>
-    <nav class="navbar">
-        <a href="/" class="nav-logo">⚡ NexusLeague</a>
-        <a href="/league/{{ league.id }}" class="nav-back">← {{ league.name }}</a>
-    </nav>
+{% extends "base.html" %}
 
-    <div class="container">
-        <div class="page-header">
-            <h1>📊 Stat Leaders</h1>
-            <p class="subtitle">{{ league.name }}</p>
-        </div>
+{% block title %}{{ league.name }} &ndash; Stat Leaders{% endblock %}
 
-        <div class="leaders-grid">
-            {% set categories = [
-                ("pass_yards",  "🏈 Passing Yards"),
-                ("rush_yards",  "🏃 Rushing Yards"),
-                ("rec_yards",   "🙌 Receiving Yards"),
-                ("total_tds",   "🎯 Total Touchdowns"),
-                ("sacks",       "💥 Sacks"),
-                ("ints",        "🛡 Interceptions")
-            ] %}
-            {% for key, label in categories %}
-                <div class="leader-card">
-                    <div class="card-header">{{ label }}</div>
-                    {% set entries = leaders[key] if key in leaders else [] %}
-                    {% if entries %}
-                        <ol class="leader-list">
-                            {% for entry in entries %}
-                                <li class="leader-item">
-                                    <span class="rank rank-{{ loop.index }}">{{ loop.index }}</span>
-                                    <a class="player-name" href="/league/{{ league.id }}/player/{{ entry.player_id }}">{{ entry.player_name }}</a>
-                                    <span class="stat-value">{{ entry.value }}</span>
-                                </li>
-                            {% endfor %}
-                        </ol>
-                    {% else %}
-                        <p class="empty-note">No data available</p>
-                    {% endif %}
-                </div>
-            {% endfor %}
-        </div>
+{% block head_extra %}
+<style>
+    .leaders-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+    }
+    .leader-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    .card-header {
+        background: var(--bg-elev);
+        padding: 14px 20px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text-mute);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        border-bottom: 1px solid var(--border);
+    }
+    .leader-list { list-style: none; padding: 8px 0; }
+    .leader-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 20px;
+        border-bottom: 1px solid var(--border-soft);
+        transition: background 0.15s;
+    }
+    .leader-item:last-child { border-bottom: none; }
+    .leader-item:hover { background: var(--bg-hover); }
+    .rank {
+        width: 22px;
+        text-align: right;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text-dim);
+        flex-shrink: 0;
+    }
+    .rank-1 { color: var(--gold); }
+    .rank-2 { color: var(--silver); }
+    .rank-3 { color: var(--bronze); }
+    .player-name {
+        flex: 1;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text);
+        text-decoration: none;
+        transition: color var(--transition);
+    }
+    .player-name:hover { color: var(--accent); }
+    .stat-value-leader { font-size: 0.92rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+    .empty-note { padding: 16px 20px; color: var(--text-dim); font-size: 0.85rem; }
+    @media (max-width: 600px) {
+        .leaders-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block nav_right %}
+<a href="/league/{{ league.id }}" class="nav-back">&larr; {{ league.name }}</a>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="page-header">
+        <h1>&#128202; Stat Leaders</h1>
+        <p class="subtitle">{{ league.name }}</p>
     </div>
-</body>
-</html>
+
+    <div class="leaders-grid">
+        {% set categories = [
+            ("pass_yards",  "🏈 Passing Yards"),
+            ("rush_yards",  "🏃 Rushing Yards"),
+            ("rec_yards",   "🙌 Receiving Yards"),
+            ("total_tds",   "🎯 Total Touchdowns"),
+            ("sacks",       "💥 Sacks"),
+            ("ints",        "🛡 Interceptions")
+        ] %}
+        {% for key, label in categories %}
+            <div class="leader-card">
+                <div class="card-header">{{ label }}</div>
+                {% set entries = leaders[key] if key in leaders else [] %}
+                {% if entries %}
+                    <ol class="leader-list">
+                        {% for entry in entries %}
+                            <li class="leader-item">
+                                <span class="rank rank-{{ loop.index }}">{{ loop.index }}</span>
+                                <a class="player-name" href="/league/{{ league.id }}/player/{{ entry.player_id }}">{{ entry.player_name }}</a>
+                                <span class="stat-value-leader">{{ entry.value }}</span>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                {% else %}
+                    <p class="empty-note">No data available</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

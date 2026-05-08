@@ -1,21 +1,44 @@
-freshenv/
+# --- Python ---
 __pycache__/
 *.pyc
 *.pyo
-.env
+*.pyd
+*.so
+
+# --- Virtualenvs ---
 .venv/
 venv/
 env/
+freshenv/
+
+# --- Local databases / SQLite ---
 *.db
-.DS_Store
-*.log
+*.sqlite3
+
+# --- Secrets / env ---
+.env
+.env.*
+!.env.example
+
+# --- IDE / OS ---
 .idea/
 .vscode/
+.DS_Store
 .mypy_cache/
-*.sqlite3
+.pytest_cache/
+.ruff_cache/
+
+# --- Build / dist ---
+build/
+dist/
+*.egg-info/
+
+# --- Logs ---
+*.log
+
+# --- Misc ---
 node_modules/
 .ipynb_checkpoints/
-*.pyd
 *.dll
 *.exe
 *.pem

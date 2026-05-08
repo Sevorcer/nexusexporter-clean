@@ -1,120 +1,84 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ league.name }} – NexusLeague</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
-        /* Navbar */
-        .navbar {
-            background: #1a1d2e; border-bottom: 1px solid #2d3147;
-            padding: 0 24px; height: 60px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .nav-logo { font-size: 1.25rem; font-weight: 700; color: #00c853; text-decoration: none; }
-        .nav-back {
-            display: flex; align-items: center; gap: 6px;
-            color: #a0aec0; text-decoration: none; font-size: 0.9rem;
-            transition: color 0.2s;
-        }
-        .nav-back:hover { color: #00c853; }
-        .nav-right { display: flex; align-items: center; gap: 14px; }
-        .nav-links { display: flex; gap: 4px; }
-        .nav-link {
-            color: #a0aec0; text-decoration: none; font-size: 0.88rem;
-            padding: 6px 12px; border-radius: 6px; transition: background 0.2s, color 0.2s;
-        }
-        .nav-link:hover { background: #2d3147; color: #e2e8f0; }
-        /* Hero */
-        .hero {
-            background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 100%);
-            border-bottom: 1px solid #2d3147;
-            padding: 48px 24px 40px;
-            text-align: center;
-        }
-        .hero h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 8px; }
-        .hero-meta { color: #7f8ea3; font-size: 0.95rem; }
-        /* Container */
-        .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
-        /* Stats row */
-        .stats-row { display: flex; gap: 16px; margin-bottom: 40px; flex-wrap: wrap; }
-        .stat-card {
-            background: #1a1d2e; border: 1px solid #2d3147; border-radius: 10px;
-            padding: 20px 28px; flex: 1; min-width: 140px; text-align: center;
-        }
-        .stat-value { font-size: 2rem; font-weight: 700; color: #00c853; }
-        .stat-label { font-size: 0.82rem; color: #7f8ea3; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
-        /* Nav cards */
-        .nav-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 16px;
-        }
-        .nav-card {
-            background: #1a1d2e; border: 1px solid #2d3147; border-radius: 12px;
-            padding: 32px 24px; text-align: center; text-decoration: none; color: #e2e8f0;
-            transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
-            display: flex; flex-direction: column; align-items: center; gap: 12px;
-        }
-        .nav-card:hover {
-            border-color: #00c853; box-shadow: 0 4px 20px rgba(0,200,83,0.12);
-            transform: translateY(-2px);
-        }
-        .nav-card-icon { font-size: 2rem; }
-        .nav-card-title { font-weight: 600; font-size: 1rem; }
-        @media (max-width: 600px) {
-            .nav-cards { grid-template-columns: 1fr 1fr; }
-            .hero h1 { font-size: 1.6rem; }
-        }
-    </style>
-</head>
-<body>
-    <nav class="navbar">
-        <a href="/" class="nav-logo">⚡ NexusLeague</a>
-        <div class="nav-right">
-            <a href="/dashboard" class="nav-back">← Dashboard</a>
+{% extends "base.html" %}
+
+{% block title %}{{ league.name }} &mdash; NexusLeague{% endblock %}
+
+{% block head_extra %}
+<style>
+    .nav-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+    }
+    .nav-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 32px 24px;
+        text-align: center;
+        text-decoration: none;
+        color: var(--text);
+        transition: border-color var(--transition), box-shadow var(--transition), transform 0.1s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+    .nav-card:hover {
+        border-color: var(--accent);
+        box-shadow: var(--shadow-pop);
+        transform: translateY(-2px);
+    }
+    .nav-card-icon { font-size: 2rem; }
+    .nav-card-title { font-weight: 600; font-size: 1rem; }
+    @media (max-width: 600px) {
+        .nav-cards { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block nav_right %}
+<a href="/" class="nav-back">&larr; Dashboard</a>
+{% endblock %}
+
+{% block body %}
+<div class="hero">
+    <h1>{{ league.name }}</h1>
+    <p class="hero-meta">
+        League ID: {{ league.id }}
+        &nbsp;&middot;&nbsp;
+        Madden League ID: {{ league.madden_league_id or "Not set" }}
+    </p>
+</div>
+
+<div class="container-narrow">
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-value">{{ teams_count }}</div>
+            <div class="stat-label">Teams</div>
         </div>
-    </nav>
-
-    <div class="hero">
-        <h1>{{ league.name }}</h1>
-        <p class="hero-meta">League ID: {{ league.id }} &nbsp;·&nbsp; Madden League ID: {{ league.madden_league_id or "Not set" }}</p>
-    </div>
-
-    <div class="container">
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-value">{{ teams_count }}</div>
-                <div class="stat-label">Teams</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value">{{ players_count }}</div>
-                <div class="stat-label">Players</div>
-            </div>
-        </div>
-
-        <div class="nav-cards">
-            <a href="/league/{{ league.id }}/standings" class="nav-card">
-                <div class="nav-card-icon">🏆</div>
-                <div class="nav-card-title">Standings</div>
-            </a>
-            <a href="/league/{{ league.id }}/roster" class="nav-card">
-                <div class="nav-card-icon">👥</div>
-                <div class="nav-card-title">Roster</div>
-            </a>
-            <a href="/league/{{ league.id }}/schedule" class="nav-card">
-                <div class="nav-card-icon">📅</div>
-                <div class="nav-card-title">Schedule</div>
-            </a>
-            <a href="/league/{{ league.id }}/leaders" class="nav-card">
-                <div class="nav-card-icon">📊</div>
-                <div class="nav-card-title">Stat Leaders</div>
-            </a>
+        <div class="stat-card">
+            <div class="stat-value">{{ players_count }}</div>
+            <div class="stat-label">Players</div>
         </div>
     </div>
-</body>
-</html>
+
+    <div class="nav-cards">
+        <a href="/league/{{ league.id }}/standings" class="nav-card">
+            <div class="nav-card-icon">&#127942;</div>
+            <div class="nav-card-title">Standings</div>
+        </a>
+        <a href="/league/{{ league.id }}/roster" class="nav-card">
+            <div class="nav-card-icon">&#128101;</div>
+            <div class="nav-card-title">Roster</div>
+        </a>
+        <a href="/league/{{ league.id }}/schedule" class="nav-card">
+            <div class="nav-card-icon">&#128197;</div>
+            <div class="nav-card-title">Schedule</div>
+        </a>
+        <a href="/league/{{ league.id }}/leaders" class="nav-card">
+            <div class="nav-card-icon">&#128202;</div>
+            <div class="nav-card-title">Stat Leaders</div>
+        </a>
+    </div>
+</div>
+{% endblock %}

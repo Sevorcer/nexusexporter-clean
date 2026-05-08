@@ -1,191 +1,168 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ player.first_name or "" }} {{ player.last_name or "" }} – NexusLeague</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
-        /* Navbar */
-        .navbar {
-            background: #1a1d2e; border-bottom: 1px solid #2d3147;
-            padding: 0 24px; height: 60px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .nav-logo { font-size: 1.25rem; font-weight: 700; color: #00c853; text-decoration: none; }
-        .nav-back { color: #a0aec0; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
-        .nav-back:hover { color: #00c853; }
-        /* Container */
-        .container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
-        /* Hero card */
-        .hero-card {
-            background: #1a1d2e; border: 1px solid #2d3147; border-radius: 14px;
-            padding: 28px 32px; margin-bottom: 32px;
-            display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;
-        }
-        .hero-main { flex: 1; min-width: 200px; }
-        .player-name { font-size: 2rem; font-weight: 700; margin-bottom: 10px; }
-        .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-        .badge {
-            font-size: 0.78rem; font-weight: 700; padding: 4px 10px; border-radius: 5px;
-            text-transform: uppercase; letter-spacing: 0.04em;
-        }
-        .badge-pos { background: #2d3147; color: #a0aec0; }
-        .badge-ovr-gold { background: rgba(255,215,0,0.18); color: #ffd700; }
-        .badge-ovr-green { background: rgba(0,200,83,0.18); color: #00c853; }
-        .badge-ovr-grey { background: rgba(160,174,192,0.15); color: #a0aec0; }
-        .badge-dev-xfactor { background: rgba(255,215,0,0.15); color: #ffd700; }
-        .badge-dev-superstar { background: rgba(192,132,252,0.15); color: #c084fc; }
-        .badge-dev-normal { background: #2d3147; color: #a0aec0; }
-        .player-meta { display: flex; flex-wrap: wrap; gap: 20px; }
-        .meta-item { }
-        .meta-label { font-size: 0.72rem; color: #7f8ea3; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
-        .meta-value { font-size: 0.95rem; font-weight: 600; }
-        /* OVR large */
-        .ovr-large {
-            text-align: center; min-width: 80px;
-        }
-        .ovr-number {
-            font-size: 3rem; font-weight: 700; line-height: 1;
-        }
-        .ovr-label { font-size: 0.72rem; color: #7f8ea3; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
-        .ovr-gold-txt { color: #ffd700; }
-        .ovr-green-txt { color: #00c853; }
-        .ovr-grey-txt { color: #a0aec0; }
-        /* Stats table */
-        .section-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
-        .table-wrap {
-            background: #1a1d2e; border: 1px solid #2d3147; border-radius: 12px; overflow: hidden;
-        }
-        table { width: 100%; border-collapse: collapse; }
-        thead th {
-            background: #252840; padding: 10px 12px;
-            font-size: 0.74rem; font-weight: 600; color: #7f8ea3;
-            text-transform: uppercase; letter-spacing: 0.06em;
-            text-align: center; border-bottom: 1px solid #2d3147;
-        }
-        thead th:first-child, thead th:nth-child(2) { text-align: left; }
-        tbody tr { border-bottom: 1px solid #1e2235; transition: background 0.15s; }
-        tbody tr:last-child { border-bottom: none; }
-        tbody tr:hover { background: #1e2235; }
-        tbody tr.totals-row { background: #252840; font-weight: 700; }
-        tbody tr.totals-row:hover { background: #2d3147; }
-        tbody td { padding: 10px 12px; font-size: 0.88rem; text-align: center; color: #a0aec0; }
-        tbody td:first-child, tbody td:nth-child(2) { text-align: left; color: #e2e8f0; font-weight: 600; }
-        .zero { color: #3a4155; }
-        @media (max-width: 600px) {
-            .player-name { font-size: 1.5rem; }
-            .hero-card { padding: 20px; gap: 16px; }
-            tbody td, thead th { padding: 8px 8px; font-size: 0.78rem; }
-        }
-    </style>
-</head>
-<body>
-    <nav class="navbar">
-        <a href="/" class="nav-logo">⚡ NexusLeague</a>
-        <a href="/league/{{ league.id }}/roster" class="nav-back">← Roster</a>
-    </nav>
+{% extends "base.html" %}
 
-    <div class="container">
-        {% set ovr = player.overall_rating or 0 %}
-        {% set dev = player.dev_trait or "" %}
+{% block title %}{{ player.first_name or "" }} {{ player.last_name or "" }} &ndash; NexusLeague{% endblock %}
 
-        <div class="hero-card">
-            <div class="hero-main">
-                <h1 class="player-name">{{ player.first_name or "" }} {{ player.last_name or "" }}</h1>
-                <div class="badges">
-                    <span class="badge badge-pos">{{ player.position or "—" }}</span>
-                    {% if ovr >= 90 %}
-                        <span class="badge badge-ovr-gold">OVR {{ ovr }}</span>
-                    {% elif ovr >= 80 %}
-                        <span class="badge badge-ovr-green">OVR {{ ovr }}</span>
-                    {% else %}
-                        <span class="badge badge-ovr-grey">OVR {{ ovr if ovr else "—" }}</span>
-                    {% endif %}
-                    {% if dev | lower == "xfactor" or dev | lower == "x-factor" %}
-                        <span class="badge badge-dev-xfactor">⚡ {{ dev }}</span>
-                    {% elif dev | lower == "superstar" %}
-                        <span class="badge badge-dev-superstar">★ {{ dev }}</span>
-                    {% elif dev %}
-                        <span class="badge badge-dev-normal">{{ dev }}</span>
-                    {% endif %}
-                </div>
-                <div class="player-meta">
-                    <div class="meta-item">
-                        <div class="meta-label">Team</div>
-                        <div class="meta-value">{{ team.team_name if team else "Free Agent" }}</div>
-                    </div>
-                    <div class="meta-item">
-                        <div class="meta-label">Age</div>
-                        <div class="meta-value">{{ player.age or "—" }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="ovr-large">
+{% block head_extra %}
+<style>
+    .hero-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 28px 32px;
+        margin-bottom: 32px;
+        display: flex;
+        align-items: flex-start;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+    .hero-main { flex: 1; min-width: 200px; }
+    .player-name { font-size: 2rem; font-weight: 700; margin-bottom: 10px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .badge { padding: 4px 10px; }
+    .player-meta { display: flex; flex-wrap: wrap; gap: 20px; }
+    .meta-label {
+        font-size: 0.72rem;
+        color: var(--text-faint);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 2px;
+    }
+    .meta-value { font-size: 0.95rem; font-weight: 600; }
+    .ovr-large {
+        text-align: center;
+        min-width: 80px;
+    }
+    .ovr-number { font-size: 3rem; font-weight: 700; line-height: 1; }
+    .ovr-label {
+        font-size: 0.72rem;
+        color: var(--text-faint);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-top: 4px;
+    }
+    .ovr-gold-txt  { color: var(--gold); }
+    .ovr-green-txt { color: var(--accent); }
+    .ovr-grey-txt  { color: var(--text-mute); }
+
+    .section-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+    .table-wrap tbody tr.totals-row { background: var(--bg-elev); font-weight: 700; }
+    .table-wrap tbody tr.totals-row:hover { background: var(--border); }
+    .table-wrap tbody td:first-child,
+    .table-wrap tbody td:nth-child(2) { text-align: left; color: var(--text); font-weight: 600; }
+    .table-wrap tbody td { text-align: center; }
+    .zero { color: var(--text-zero); }
+    @media (max-width: 600px) {
+        .player-name { font-size: 1.5rem; }
+        .hero-card { padding: 20px; gap: 16px; }
+    }
+</style>
+{% endblock %}
+
+{% block nav_right %}
+<a href="/league/{{ league.id }}/roster" class="nav-back">&larr; Roster</a>
+{% endblock %}
+
+{% block body %}
+<div class="container-narrow">
+    {% set ovr = player.overall_rating or 0 %}
+    {% set dev = player.dev_trait or "" %}
+
+    <div class="hero-card">
+        <div class="hero-main">
+            <h1 class="player-name">{{ player.first_name or "" }} {{ player.last_name or "" }}</h1>
+            <div class="badges">
+                <span class="badge badge-pos">{{ player.position or "&mdash;" }}</span>
                 {% if ovr >= 90 %}
-                    <div class="ovr-number ovr-gold-txt">{{ ovr }}</div>
+                    <span class="badge badge-ovr-gold">OVR {{ ovr }}</span>
                 {% elif ovr >= 80 %}
-                    <div class="ovr-number ovr-green-txt">{{ ovr }}</div>
+                    <span class="badge badge-ovr-green">OVR {{ ovr }}</span>
                 {% else %}
-                    <div class="ovr-number ovr-grey-txt">{{ ovr if ovr else "—" }}</div>
+                    <span class="badge badge-ovr-grey">OVR {{ ovr if ovr else "&mdash;" }}</span>
                 {% endif %}
-                <div class="ovr-label">Overall</div>
+                {% if dev | lower == "xfactor" or dev | lower == "x-factor" %}
+                    <span class="badge badge-dev-xfactor">&#9889; {{ dev }}</span>
+                {% elif dev | lower == "superstar" %}
+                    <span class="badge badge-dev-superstar">&#9733; {{ dev }}</span>
+                {% elif dev %}
+                    <span class="badge badge-dev-normal">{{ dev }}</span>
+                {% endif %}
+            </div>
+            <div class="player-meta">
+                <div>
+                    <div class="meta-label">Team</div>
+                    <div class="meta-value">{{ team.team_name if team else "Free Agent" }}</div>
+                </div>
+                <div>
+                    <div class="meta-label">Age</div>
+                    <div class="meta-value">{{ player.age or "&mdash;" }}</div>
+                </div>
             </div>
         </div>
-
-        <div class="section-title">Weekly Stats History</div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Season</th>
-                        <th>Week</th>
-                        <th>Pass Yds</th>
-                        <th>Rush Yds</th>
-                        <th>Rec Yds</th>
-                        <th>TDs</th>
-                        <th>Sacks</th>
-                        <th>INTs</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% set ns = namespace(tot_pass=0, tot_rush=0, tot_rec=0, tot_tds=0, tot_sacks=0, tot_ints=0) %}
-                    {% for row in stats_rows %}
-                        {% set tds = (row.pass_tds or 0) + (row.rush_tds or 0) + (row.rec_tds or 0) %}
-                        {% set ns.tot_pass = ns.tot_pass + (row.pass_yards or 0) %}
-                        {% set ns.tot_rush = ns.tot_rush + (row.rush_yards or 0) %}
-                        {% set ns.tot_rec = ns.tot_rec + (row.rec_yards or 0) %}
-                        {% set ns.tot_tds = ns.tot_tds + tds %}
-                        {% set ns.tot_sacks = ns.tot_sacks + (row.sacks or 0) %}
-                        {% set ns.tot_ints = ns.tot_ints + (row.defensive_ints or 0) %}
-                        <tr>
-                            <td>{{ row.season_number }}</td>
-                            <td>{{ row.week_number }}</td>
-                            <td class="{{ 'zero' if not row.pass_yards else '' }}">{{ row.pass_yards or 0 }}</td>
-                            <td class="{{ 'zero' if not row.rush_yards else '' }}">{{ row.rush_yards or 0 }}</td>
-                            <td class="{{ 'zero' if not row.rec_yards else '' }}">{{ row.rec_yards or 0 }}</td>
-                            <td class="{{ 'zero' if not tds else '' }}">{{ tds }}</td>
-                            <td class="{{ 'zero' if not row.sacks else '' }}">{{ row.sacks or 0 }}</td>
-                            <td class="{{ 'zero' if not row.defensive_ints else '' }}">{{ row.defensive_ints or 0 }}</td>
-                        </tr>
-                    {% endfor %}
-                    {% if stats_rows %}
-                        <tr class="totals-row">
-                            <td colspan="2">Totals</td>
-                            <td>{{ ns.tot_pass }}</td>
-                            <td>{{ ns.tot_rush }}</td>
-                            <td>{{ ns.tot_rec }}</td>
-                            <td>{{ ns.tot_tds }}</td>
-                            <td>{{ ns.tot_sacks }}</td>
-                            <td>{{ ns.tot_ints }}</td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+        <div class="ovr-large">
+            {% if ovr >= 90 %}
+                <div class="ovr-number ovr-gold-txt">{{ ovr }}</div>
+            {% elif ovr >= 80 %}
+                <div class="ovr-number ovr-green-txt">{{ ovr }}</div>
+            {% else %}
+                <div class="ovr-number ovr-grey-txt">{{ ovr if ovr else "&mdash;" }}</div>
+            {% endif %}
+            <div class="ovr-label">Overall</div>
         </div>
     </div>
-</body>
-</html>
+
+    <div class="section-title">Weekly Stats History</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Season</th>
+                    <th>Week</th>
+                    <th>Pass Yds</th>
+                    <th>Rush Yds</th>
+                    <th>Rec Yds</th>
+                    <th>TDs</th>
+                    <th>Sacks</th>
+                    <th>INTs</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set ns = namespace(tot_pass=0, tot_rush=0, tot_rec=0, tot_tds=0, tot_sacks=0, tot_ints=0) %}
+                {% for row in stats_rows %}
+                    {% set tds = (row.pass_tds or 0) + (row.rush_tds or 0) + (row.rec_tds or 0) %}
+                    {% set ns.tot_pass = ns.tot_pass + (row.pass_yards or 0) %}
+                    {% set ns.tot_rush = ns.tot_rush + (row.rush_yards or 0) %}
+                    {% set ns.tot_rec = ns.tot_rec + (row.rec_yards or 0) %}
+                    {% set ns.tot_tds = ns.tot_tds + tds %}
+                    {% set ns.tot_sacks = ns.tot_sacks + (row.sacks or 0) %}
+                    {% set ns.tot_ints = ns.tot_ints + (row.defensive_ints or 0) %}
+                    <tr>
+                        <td>{{ row.season_number }}</td>
+                        <td>{{ row.week_number }}</td>
+                        <td class="{{ 'zero' if not row.pass_yards else '' }}">{{ row.pass_yards or 0 }}</td>
+                        <td class="{{ 'zero' if not row.rush_yards else '' }}">{{ row.rush_yards or 0 }}</td>
+                        <td class="{{ 'zero' if not row.rec_yards else '' }}">{{ row.rec_yards or 0 }}</td>
+                        <td class="{{ 'zero' if not tds else '' }}">{{ tds }}</td>
+                        <td class="{{ 'zero' if not row.sacks else '' }}">{{ row.sacks or 0 }}</td>
+                        <td class="{{ 'zero' if not row.defensive_ints else '' }}">{{ row.defensive_ints or 0 }}</td>
+                    </tr>
+                {% endfor %}
+                {% if stats_rows %}
+                    <tr class="totals-row">
+                        <td colspan="2">Totals</td>
+                        <td>{{ ns.tot_pass }}</td>
+                        <td>{{ ns.tot_rush }}</td>
+                        <td>{{ ns.tot_rec }}</td>
+                        <td>{{ ns.tot_tds }}</td>
+                        <td>{{ ns.tot_sacks }}</td>
+                        <td>{{ ns.tot_ints }}</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not stats_rows %}
+        <div class="empty-state">No stats recorded yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

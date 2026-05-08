@@ -1,144 +1,148 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ league.name }} – Schedule</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
-        /* Navbar */
-        .navbar {
-            background: #1a1d2e; border-bottom: 1px solid #2d3147;
-            padding: 0 24px; height: 60px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .nav-logo { font-size: 1.25rem; font-weight: 700; color: #00c853; text-decoration: none; }
-        .nav-back { color: #a0aec0; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
-        .nav-back:hover { color: #00c853; }
-        /* Container */
-        .container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
-        .page-header { margin-bottom: 32px; }
-        .page-header h1 { font-size: 1.75rem; font-weight: 700; }
-        .page-header .subtitle { color: #7f8ea3; font-size: 0.9rem; margin-top: 4px; }
-        /* Week section */
-        .week-section { margin-bottom: 24px; }
-        .week-toggle {
-            width: 100%; background: #1a1d2e; border: 1px solid #2d3147; border-radius: 10px;
-            padding: 14px 20px; color: #e2e8f0; font-family: 'Inter', sans-serif;
-            font-size: 1rem; font-weight: 600; cursor: pointer; text-align: left;
-            display: flex; align-items: center; justify-content: space-between;
-            transition: border-color 0.2s; outline: none;
-        }
-        .week-toggle:hover { border-color: #00c853; }
-        .week-toggle.open { border-color: #00c853; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-        .week-chevron { transition: transform 0.2s; font-size: 0.9rem; color: #7f8ea3; }
-        .week-toggle.open .week-chevron { transform: rotate(180deg); }
-        .week-games {
-            background: #1a1d2e; border: 1px solid #00c853; border-top: none;
-            border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
-            overflow: hidden; display: none;
-        }
-        .week-games.open { display: block; }
-        /* Matchup card */
-        .matchup {
-            padding: 16px 20px; border-bottom: 1px solid #1e2235;
-            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-        }
-        .matchup:last-child { border-bottom: none; }
-        .matchup-teams {
-            flex: 1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 200px;
-        }
-        .team-name { font-weight: 600; font-size: 0.95rem; }
-        .team-name.winner { color: #00c853; }
-        .at-symbol { color: #7f8ea3; font-size: 0.85rem; }
-        .matchup-score {
-            display: flex; align-items: center; gap: 8px; font-size: 1.05rem; font-weight: 700;
-        }
-        .score-away { color: #e2e8f0; }
-        .score-away.winner { color: #00c853; }
-        .score-sep { color: #4a5568; }
-        .score-home { color: #e2e8f0; }
-        .score-home.winner { color: #00c853; }
-        .badge {
-            font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 4px;
-            text-transform: uppercase; letter-spacing: 0.05em;
-        }
-        .badge-upcoming { background: rgba(255,165,0,0.15); color: #f6ad55; }
-        .badge-final { background: rgba(0,200,83,0.12); color: #00c853; }
-        @media (max-width: 600px) {
-            .page-header h1 { font-size: 1.3rem; }
-            .matchup { flex-direction: column; align-items: flex-start; gap: 8px; }
-        }
-    </style>
-    <script>
-        function toggleWeek(btn, gamesId) {
-            btn.classList.toggle('open');
-            const games = document.getElementById(gamesId);
-            games.classList.toggle('open');
-        }
-        // Open the first week by default
-        document.addEventListener('DOMContentLoaded', function() {
-            const first = document.querySelector('.week-toggle');
-            const firstGames = document.querySelector('.week-games');
-            if (first && firstGames) { first.classList.add('open'); firstGames.classList.add('open'); }
-        });
-    </script>
-</head>
-<body>
-    <nav class="navbar">
-        <a href="/" class="nav-logo">⚡ NexusLeague</a>
-        <a href="/league/{{ league.id }}" class="nav-back">← {{ league.name }}</a>
-    </nav>
+{% extends "base.html" %}
 
-    <div class="container">
-        <div class="page-header">
-            <h1>📅 Schedule</h1>
-            <p class="subtitle">{{ league.name }}</p>
-        </div>
+{% block title %}{{ league.name }} &ndash; Schedule{% endblock %}
 
-        {% for week_number, games in week_groups %}
-            {% set week_id = "week-" ~ loop.index %}
-            <div class="week-section">
-                <button class="week-toggle" onclick="toggleWeek(this, '{{ week_id }}')">
-                    <span>Week {{ week_number }}</span>
-                    <span class="week-chevron">▼</span>
-                </button>
-                <div class="week-games" id="{{ week_id }}">
-                    {% for game in games %}
-                        {% set away_team = team_map.get(game.away_team_id) %}
-                        {% set home_team = team_map.get(game.home_team_id) %}
-                        {% set away_name = away_team.team_name if away_team else "Unknown" %}
-                        {% set home_name = home_team.team_name if home_team else "Unknown" %}
-                        {% if game.is_complete %}
-                            {% set away_score = game.away_score or 0 %}
-                            {% set home_score = game.home_score or 0 %}
-                            {% set away_wins = away_score > home_score %}
-                            {% set home_wins = home_score > away_score %}
-                        {% endif %}
-                        <div class="matchup">
-                            <div class="matchup-teams">
-                                <span class="team-name {{ 'winner' if game.is_complete and away_score > home_score else '' }}">{{ away_name }}</span>
-                                <span class="at-symbol">@</span>
-                                <span class="team-name {{ 'winner' if game.is_complete and home_score > away_score else '' }}">{{ home_name }}</span>
-                            </div>
-                            {% if game.is_complete %}
-                                <div class="matchup-score">
-                                    <span class="score-away {{ 'winner' if away_score > home_score else '' }}">{{ away_score }}</span>
-                                    <span class="score-sep">–</span>
-                                    <span class="score-home {{ 'winner' if home_score > away_score else '' }}">{{ home_score }}</span>
-                                </div>
-                                <span class="badge badge-final">Final</span>
-                            {% else %}
-                                <span class="badge badge-upcoming">Upcoming</span>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-        {% endfor %}
+{% block head_extra %}
+<style>
+    .week-section { margin-bottom: 24px; }
+    .week-toggle {
+        width: 100%;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 14px 20px;
+        color: var(--text);
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: border-color var(--transition);
+        outline: none;
+    }
+    .week-toggle:hover { border-color: var(--accent); }
+    .week-toggle.open {
+        border-color: var(--accent);
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    .week-chevron { transition: transform var(--transition); font-size: 0.9rem; color: var(--text-faint); }
+    .week-toggle.open .week-chevron { transform: rotate(180deg); }
+    .week-games {
+        background: var(--bg-card);
+        border: 1px solid var(--accent);
+        border-top: none;
+        border-bottom-left-radius: var(--radius-md);
+        border-bottom-right-radius: var(--radius-md);
+        overflow: hidden;
+        display: none;
+    }
+    .week-games.open { display: block; }
+    .matchup {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-soft);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    .matchup:last-child { border-bottom: none; }
+    .matchup-teams {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        min-width: 200px;
+    }
+    .team-name { font-weight: 600; font-size: 0.95rem; }
+    .team-name.winner { color: var(--accent); }
+    .at-symbol { color: var(--text-faint); font-size: 0.85rem; }
+    .matchup-score {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1.05rem;
+        font-weight: 700;
+    }
+    .score-away,
+    .score-home { color: var(--text); }
+    .score-away.winner,
+    .score-home.winner { color: var(--accent); }
+    .score-sep { color: var(--text-dim); }
+    @media (max-width: 600px) {
+        .matchup { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+</style>
+<script>
+    function toggleWeek(btn, gamesId) {
+        btn.classList.toggle('open');
+        const games = document.getElementById(gamesId);
+        games.classList.toggle('open');
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        const first = document.querySelector('.week-toggle');
+        const firstGames = document.querySelector('.week-games');
+        if (first && firstGames) { first.classList.add('open'); firstGames.classList.add('open'); }
+    });
+</script>
+{% endblock %}
+
+{% block nav_right %}
+<a href="/league/{{ league.id }}" class="nav-back">&larr; {{ league.name }}</a>
+{% endblock %}
+
+{% block body %}
+<div class="container-narrow">
+    <div class="page-header">
+        <h1>&#128197; Schedule</h1>
+        <p class="subtitle">{{ league.name }}</p>
     </div>
-</body>
-</html>
+
+    {% for week_number, games in week_groups %}
+        {% set week_id = "week-" ~ loop.index %}
+        <div class="week-section">
+            <button class="week-toggle" onclick="toggleWeek(this, '{{ week_id }}')">
+                <span>Week {{ week_number }}</span>
+                <span class="week-chevron">&#9660;</span>
+            </button>
+            <div class="week-games" id="{{ week_id }}">
+                {% for game in games %}
+                    {% set away_team = team_map.get(game.away_team_id) %}
+                    {% set home_team = team_map.get(game.home_team_id) %}
+                    {% set away_name = away_team.team_name if away_team else "Unknown" %}
+                    {% set home_name = home_team.team_name if home_team else "Unknown" %}
+                    {% if game.is_complete %}
+                        {% set away_score = game.away_score or 0 %}
+                        {% set home_score = game.home_score or 0 %}
+                    {% endif %}
+                    <div class="matchup">
+                        <div class="matchup-teams">
+                            <span class="team-name {{ 'winner' if game.is_complete and away_score > home_score else '' }}">{{ away_name }}</span>
+                            <span class="at-symbol">@</span>
+                            <span class="team-name {{ 'winner' if game.is_complete and home_score > away_score else '' }}">{{ home_name }}</span>
+                        </div>
+                        {% if game.is_complete %}
+                            <div class="matchup-score">
+                                <span class="score-away {{ 'winner' if away_score > home_score else '' }}">{{ away_score }}</span>
+                                <span class="score-sep">&ndash;</span>
+                                <span class="score-home {{ 'winner' if home_score > away_score else '' }}">{{ home_score }}</span>
+                            </div>
+                            <span class="badge badge-final">Final</span>
+                        {% else %}
+                            <span class="badge badge-upcoming">Upcoming</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+
+    {% if not week_groups %}
+        <div class="empty-state">No games scheduled yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

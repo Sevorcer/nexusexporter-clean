@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/main.css">
   <style>
     :root {
       --bg:#07070F; --bg2:#0D0D1C; --card:#0F0F20; --border:#1C1C38; --border2:#252545;
@@ -412,7 +413,7 @@
                       {% if leagues %}{{ leagues[0].api_key[:12] }}…{% else %}—{% endif %}
                     </span>
                     {% if leagues %}
-                      <button class="btn-copy" onclick="copyApiKey('{{ leagues[0].api_key }}', 'step1')">Copy</button>
+                      <button class="btn-copy" data-api-key="{{ leagues[0].api_key|e }}" data-target="step1" onclick="copyApiKeyFromBtn(this)">Copy</button>
                       <span class="copied-badge" id="copied-step1">✓ Copied</span>
                     {% endif %}
                   </div>
@@ -724,13 +725,14 @@
               <div class="lbot-row">
                 <span class="lbot-lbl">API Key</span>
                 <span class="lbot-val">{{ league.api_key[:8] }}••••••••••••••••</span>
-                <button class="btn-copy" onclick="copyApiKey('{{ league.api_key }}', {{ loop.index }})">Copy</button>
+                <button class="btn-copy" data-api-key="{{ league.api_key|e }}" data-target="{{ loop.index }}" onclick="copyApiKeyFromBtn(this)">Copy</button>
                 <span class="copied-badge" id="copied-{{ loop.index }}">✓ Copied</span>
               </div>
               <div class="lbot-row">
                 <span class="lbot-lbl">Madden ID</span>
                 <form method="post" action="/set_madden_id" class="madden-form">
                   <input type="hidden" name="league_id" value="{{ league.id }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input
                     class="madden-input"
                     type="text"
@@ -762,6 +764,7 @@
     <div class="cr-card">
       <div class="cr-title">➕ CREATE NEW LEAGUE</div>
       <form method="post" action="/create_league">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="cr-form-row">
           <input class="cr-input" type="text" name="league_name" placeholder="League name" required>
           <button type="submit" class="btn-create">Create</button>
@@ -790,7 +793,9 @@
     cur = n;
   }
 
-  function copyApiKey(key, idx) {
+  function copyApiKeyFromBtn(btn) {
+    const key = btn.dataset.apiKey || '';
+    const idx = btn.dataset.target || '';
     navigator.clipboard.writeText(key);
     const el = document.getElementById('copied-' + idx);
     if (el) { el.style.display = 'inline'; setTimeout(() => el.style.display = 'none', 1200); }

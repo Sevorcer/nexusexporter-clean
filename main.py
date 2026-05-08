@@ -6,22 +6,42 @@ from typing import Optional, List, Any, Dict, Set, Tuple, Type, DefaultDict, Lit
 from collections import defaultdict
 from urllib.parse import urlencode, parse_qs
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Form, Depends, status, HTTPException, Body, Query
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import SQLModel, Field, Relationship, Session, select, create_engine, delete
-from sqlalchemy import UniqueConstraint, func
+from sqlalchemy import UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
 
 # ----------- Config -----------
+load_dotenv()
+
+
+def _require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(
+            f"Environment variable {name} is required. "
+            f"Copy .env.example to .env and fill it in, or export the variable. "
+            f"See README.md section 'Quick start' for details."
+        )
+    return value
+
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///database.db")
-SECRET_KEY = os.environ.get("SECRET_KEY", "very-secret-dev-key")
-DISCORD_CLIENT_ID = os.environ["DISCORD_CLIENT_ID"]
-DISCORD_CLIENT_SECRET = os.environ["DISCORD_CLIENT_SECRET"]
-DISCORD_REDIRECT_URI = os.environ["DISCORD_REDIRECT_URI"]
+SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_urlsafe(48)
+if not os.environ.get("SECRET_KEY"):
+    logging.warning(
+        "SECRET_KEY not set; generated an ephemeral one. Sessions will not survive restarts. "
+        "Set SECRET_KEY in .env for any non-trivial deployment."
+    )
+DISCORD_CLIENT_ID = _require_env("DISCORD_CLIENT_ID")
+DISCORD_CLIENT_SECRET = _require_env("DISCORD_CLIENT_SECRET")
+DISCORD_REDIRECT_URI = _require_env("DISCORD_REDIRECT_URI")
 MAX_MADDEN_LEAGUE_ID_LENGTH = 64
 COMPANION_JSON_FORM_KEYS = ("payload", "data", "body", "json")
 COMPANION_DEBUG_PREVIEW_LIMIT = 1000
@@ -37,13 +57,23 @@ engine = create_engine(
 
 # ----------- FastAPI app & Templates -----------
 app = FastAPI()
-@app.get("/force_create_tables")
-def force_create_tables():
-    SQLModel.metadata.create_all(engine)
-    return {"status": "tables created"}
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/healthz")
+def healthz():
+    """Liveness + DB-reachability probe used by Docker/Railway healthchecks."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "ok"}
+    except Exception as exc:  # pragma: no cover - infra concern
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "db": "unreachable", "error": str(exc)},
+        )
 
 # ----------- MODELS -----------
 
@@ -293,6 +323,22 @@ def get_current_user(request: Request, session: Session = Depends(get_session)) 
         return None
     user = session.exec(select(User).where(User.discord_id == discord_id)).first()
     return user
+
+
+def get_csrf_token(request: Request) -> str:
+    """Return the per-session CSRF token, generating one on first access."""
+    token = request.session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        request.session["csrf_token"] = token
+    return token
+
+
+def validate_csrf(request: Request, submitted: Optional[str]) -> bool:
+    expected = request.session.get("csrf_token")
+    if not expected or not submitted:
+        return False
+    return secrets.compare_digest(expected, submitted)
 
 def validate_api_key(league_id: int, key: str, session: Session) -> League:
     league = session.get(League, league_id)
@@ -820,12 +866,9 @@ def build_stat_leaders(
 def home(request: Request, session: Session = Depends(get_session)):
     user = get_current_user(request, session)
     error = request.session.pop("flash_error", None)
-    discord_auth_url = "https://discord.com/api/oauth2/authorize?" + urlencode({
-        "client_id": DISCORD_CLIENT_ID,
-        "redirect_uri": DISCORD_REDIRECT_URI,
-        "response_type": "code",
-        "scope": "identify"
-    })
+    state = secrets.token_urlsafe(32)
+    request.session["oauth_state"] = state
+    discord_auth_url = _build_discord_auth_url(state)
     if not user:
         return templates.TemplateResponse("home.html", {
             "request": request, "user": None, "discord_auth_url": discord_auth_url, "error": error
@@ -854,55 +897,93 @@ def home(request: Request, session: Session = Depends(get_session)):
 
     return templates.TemplateResponse("dashboard.html", {
         "request": request, "user": user, "leagues": leagues,
-        "league_meta": league_meta, "error": error, "flash_msg": flash_msg
+        "league_meta": league_meta, "error": error, "flash_msg": flash_msg,
+        "csrf_token": get_csrf_token(request),
     })
 
-@app.get("/login", response_class=HTMLResponse)
-def login_get(request: Request):
-    discord_auth_url = "https://discord.com/api/oauth2/authorize?" + urlencode({
+def _build_discord_auth_url(state: str) -> str:
+    return "https://discord.com/api/oauth2/authorize?" + urlencode({
         "client_id": DISCORD_CLIENT_ID,
         "redirect_uri": DISCORD_REDIRECT_URI,
         "response_type": "code",
-        "scope": "identify"
+        "scope": "identify",
+        "state": state,
     })
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_get(request: Request):
+    state = secrets.token_urlsafe(32)
+    request.session["oauth_state"] = state
     error = request.session.pop("flash_error", None)
-    return templates.TemplateResponse("login.html", {"request": request, "discord_auth_url": discord_auth_url, "error": error})
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "discord_auth_url": _build_discord_auth_url(state), "error": error},
+    )
+
 
 @app.get("/oauth-callback")
-async def discord_callback(request: Request, code: str = None, session: Session = Depends(get_session)):
-    if code is None:
+async def discord_callback(
+    request: Request,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    if not code:
         request.session["flash_error"] = "No code from Discord; please try again."
         return RedirectResponse("/login", status_code=303)
 
+    expected_state = request.session.pop("oauth_state", None)
+    if not expected_state or not state or not secrets.compare_digest(expected_state, state):
+        request.session["flash_error"] = "Login session expired or tampered. Please try again."
+        return RedirectResponse("/login", status_code=303)
+
     # Exchange code for token
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         data = {
             "client_id": DISCORD_CLIENT_ID,
             "client_secret": DISCORD_CLIENT_SECRET,
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": DISCORD_REDIRECT_URI,
-            "scope": "identify"
+            "scope": "identify",
         }
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        token_res = await client.post("https://discord.com/api/oauth2/token", data=data, headers=headers)
+        try:
+            token_res = await client.post(
+                "https://discord.com/api/oauth2/token", data=data, headers=headers
+            )
+        except httpx.HTTPError:
+            request.session["flash_error"] = "Could not reach Discord. Try again in a moment."
+            return RedirectResponse("/login", status_code=303)
         if token_res.status_code != 200:
             request.session["flash_error"] = "Discord OAuth failed."
             return RedirectResponse("/login", status_code=303)
         token_json = token_res.json()
-        access_token = token_json["access_token"]
+        access_token = token_json.get("access_token") if isinstance(token_json, dict) else None
+        if not access_token:
+            request.session["flash_error"] = "Discord did not return an access token."
+            return RedirectResponse("/login", status_code=303)
 
         # Get user info
-        user_res = await client.get("https://discord.com/api/users/@me", headers={
-            "Authorization": f"Bearer {access_token}"
-        })
+        try:
+            user_res = await client.get(
+                "https://discord.com/api/users/@me",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+        except httpx.HTTPError:
+            request.session["flash_error"] = "Could not reach Discord. Try again in a moment."
+            return RedirectResponse("/login", status_code=303)
         if user_res.status_code != 200:
             request.session["flash_error"] = "Failed to get user info from Discord."
             return RedirectResponse("/login", status_code=303)
-        discord_info = user_res.json()
-        discord_id = discord_info["id"]
-        username = discord_info["username"]
+        discord_info = user_res.json() if user_res.headers.get("content-type", "").startswith("application/json") else {}
+        discord_id = discord_info.get("id")
+        username = discord_info.get("username")
         avatar = discord_info.get("avatar")
+        if not discord_id or not username:
+            request.session["flash_error"] = "Discord returned an unexpected response."
+            return RedirectResponse("/login", status_code=303)
 
         user = session.exec(select(User).where(User.discord_id == discord_id)).first()
         if user is None:
@@ -930,8 +1011,12 @@ def logout(request: Request):
 def create_league(
     request: Request,
     league_name: str = Form(...),
+    csrf_token: str = Form(...),
     session: Session = Depends(get_session)
 ):
+    if not validate_csrf(request, csrf_token):
+        request.session["flash_error"] = "Session expired; please reload and try again."
+        return RedirectResponse("/", status_code=303)
     user = get_current_user(request, session)
     if not user:
         request.session["flash_error"] = "Please log in to create a league."
@@ -949,8 +1034,12 @@ def set_madden_id(
     request: Request,
     league_id: int = Form(...),
     madden_league_id: Optional[str] = Form(default=""),
+    csrf_token: str = Form(...),
     session: Session = Depends(get_session),
 ):
+    if not validate_csrf(request, csrf_token):
+        request.session["flash_error"] = "Session expired; please reload and try again."
+        return RedirectResponse("/", status_code=303)
     user = get_current_user(request, session)
     if not user:
         request.session["flash_error"] = "Please log in to update Madden league IDs."
@@ -1385,19 +1474,22 @@ def player_profile_page(league_id: int, player_id: int, request: Request, sessio
     )
 
 @app.get("/home", response_class=HTMLResponse)
-def home(request: Request):
-    # Optional public info
+def public_home(request: Request):
     return templates.TemplateResponse("home.html", {"request": request})
+
 
 @app.exception_handler(Exception)
 def global_exception_handler(request: Request, exc: Exception):
-    # Nice error screen for debugging/demo
-    print("Unhandled exception:", exc)
+    logging.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return HTMLResponse(
-        f"<h1>Internal Error</h1><pre>{exc}</pre><p><a href='/'>Back to dashboard</a></p>",
+        "<h1>Something went wrong</h1>"
+        "<p>Our team has been notified. Please try again or head back to the dashboard.</p>"
+        "<p><a href='/'>Back to dashboard</a></p>",
         status_code=500,
     )
 
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    reload_flag = os.environ.get("UVICORN_RELOAD", "true").strip().lower() in {"1", "true", "yes"}
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=reload_flag)
