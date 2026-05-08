@@ -863,7 +863,8 @@ class ApiIngestTests(unittest.TestCase):
 
     def test_companion_debug_logging_is_opt_in(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
-        with patch.object(main, "COMPANION_DEBUG_LOG_ENABLED", False), patch.object(main.companion_logger, "info") as mock_info:
+        from app.routers import api as api_module
+        with patch.object(api_module, "COMPANION_DEBUG_LOG_ENABLED", False), patch.object(api_module.companion_logger, "info") as mock_info:
             response = self.client.post(
                 "/xbsx/22006264/standings",
                 json={"content": {"teamStandingInfoList": [{"teamId": 10, "totalWins": 8, "totalLosses": 4, "totalTies": 0}]}},
@@ -873,7 +874,8 @@ class ApiIngestTests(unittest.TestCase):
 
     def test_companion_debug_logging_reports_parse_failures(self):
         self.create_league(api_key="companion-key", madden_league_id="22006264")
-        with patch.object(main, "COMPANION_DEBUG_LOG_ENABLED", True), patch.object(main.companion_logger, "info") as mock_info:
+        from app.routers import api as api_module
+        with patch.object(api_module, "COMPANION_DEBUG_LOG_ENABLED", True), patch.object(api_module.companion_logger, "info") as mock_info:
             response = self.client.post(
                 "/xbsx/22006264/standings",
                 content=b"\xff\xfe\xfd",
@@ -1006,12 +1008,15 @@ class ApiIngestTests(unittest.TestCase):
         user_id = self.create_user("owner-1", "owner")
         league_id = self.create_league(user_id=user_id)
         with patch(
-            "main.get_current_user",
+            "app.routers.accounts.validate_csrf",
+            return_value=True,
+        ), patch(
+            "app.routers.accounts.get_current_user",
             return_value=main.User(id=user_id, discord_id="owner-1", username="owner"),
         ):
             response = self.client.post(
                 "/set_madden_id",
-                data={"league_id": str(league_id), "madden_league_id": "22006264"},
+                data={"league_id": str(league_id), "madden_league_id": "22006264", "csrf_token": "test-csrf"},
                 follow_redirects=False,
             )
         self.assertEqual(response.status_code, 303)
@@ -1027,12 +1032,15 @@ class ApiIngestTests(unittest.TestCase):
         other_id = self.create_user("other-2", "other")
         league_id = self.create_league(user_id=owner_id)
         with patch(
-            "main.get_current_user",
+            "app.routers.accounts.validate_csrf",
+            return_value=True,
+        ), patch(
+            "app.routers.accounts.get_current_user",
             return_value=main.User(id=other_id, discord_id="other-2", username="other"),
         ):
             response = self.client.post(
                 "/set_madden_id",
-                data={"league_id": str(league_id), "madden_league_id": "22006264"},
+                data={"league_id": str(league_id), "madden_league_id": "22006264", "csrf_token": "test-csrf"},
                 follow_redirects=False,
             )
         self.assertEqual(response.status_code, 303)
@@ -1047,12 +1055,15 @@ class ApiIngestTests(unittest.TestCase):
         user_id = self.create_user("owner-3", "owner")
         league_id = self.create_league(user_id=user_id, madden_league_id="22006264")
         with patch(
-            "main.get_current_user",
+            "app.routers.accounts.validate_csrf",
+            return_value=True,
+        ), patch(
+            "app.routers.accounts.get_current_user",
             return_value=main.User(id=user_id, discord_id="owner-3", username="owner"),
         ):
             response = self.client.post(
                 "/set_madden_id",
-                data={"league_id": str(league_id), "madden_league_id": "   "},
+                data={"league_id": str(league_id), "madden_league_id": "   ", "csrf_token": "test-csrf"},
                 follow_redirects=False,
             )
         self.assertEqual(response.status_code, 303)
@@ -1067,12 +1078,15 @@ class ApiIngestTests(unittest.TestCase):
         user_id = self.create_user("owner-4", "owner")
         league_id = self.create_league(user_id=user_id, madden_league_id="22006264")
         with patch(
-            "main.get_current_user",
+            "app.routers.accounts.validate_csrf",
+            return_value=True,
+        ), patch(
+            "app.routers.accounts.get_current_user",
             return_value=main.User(id=user_id, discord_id="owner-4", username="owner"),
         ):
             response = self.client.post(
                 "/set_madden_id",
-                data={"league_id": str(league_id), "madden_league_id": ""},
+                data={"league_id": str(league_id), "madden_league_id": "", "csrf_token": "test-csrf"},
                 follow_redirects=False,
             )
         self.assertEqual(response.status_code, 303)
@@ -1088,12 +1102,15 @@ class ApiIngestTests(unittest.TestCase):
         league_id = self.create_league(user_id=user_id, madden_league_id="22006264")
         too_long_madden_id = "1" * (main.MAX_MADDEN_LEAGUE_ID_LENGTH + 1)
         with patch(
-            "main.get_current_user",
+            "app.routers.accounts.validate_csrf",
+            return_value=True,
+        ), patch(
+            "app.routers.accounts.get_current_user",
             return_value=main.User(id=user_id, discord_id="owner-5", username="owner"),
         ):
             response = self.client.post(
                 "/set_madden_id",
-                data={"league_id": str(league_id), "madden_league_id": too_long_madden_id},
+                data={"league_id": str(league_id), "madden_league_id": too_long_madden_id, "csrf_token": "test-csrf"},
                 follow_redirects=False,
             )
         self.assertEqual(response.status_code, 303)
