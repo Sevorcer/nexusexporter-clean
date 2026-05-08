@@ -106,15 +106,55 @@ def league_detail_page(
     league_id: int, request: Request, session: Session = Depends(get_session)
 ):
     league = get_league_or_404(league_id, session)
-    teams_count = len(session.exec(select(Team).where(Team.league_id == league_id)).all())
-    players_count = len(session.exec(select(Player).where(Player.league_id == league_id)).all())
+    teams = session.exec(select(Team).where(Team.league_id == league_id)).all()
+    players_count = session.exec(
+        select(func.count()).select_from(Player).where(Player.league_id == league_id)
+    ).one()
+    team_map = {team.id: team for team in teams if team.id is not None}
+
+    schedules = session.exec(select(Schedule).where(Schedule.league_id == league_id)).all()
+    completed = [s for s in schedules if s.is_complete]
+    latest_season = max((s.season_number for s in schedules), default=None)
+    latest_week = max((s.week_number for s in completed), default=None)
+    games_played = len(completed)
+    recent_games = []
+    if latest_week is not None and latest_season is not None:
+        recent_games = sorted(
+            [s for s in completed if s.week_number == latest_week and s.season_number == latest_season],
+            key=lambda s: (s.id or 0),
+        )
+
+    standings = session.exec(select(Standing).where(Standing.league_id == league_id)).all()
+    division_leaders: List[Standing] = []
+    seen_divs: set = set()
+    for s in sorted(standings, key=lambda s: (-(s.wins or 0), s.losses or 0)):
+        div = s.division_name or "Unknown"
+        if div in seen_divs:
+            continue
+        seen_divs.add(div)
+        division_leaders.append(s)
+
+    top_leaders = build_stat_leaders(session, league_id, season_number=None, limit=3)
+
+    has_data = len(teams) > 0
+    has_madden_id = bool(league.madden_league_id)
+
     return templates.TemplateResponse(
         "league_detail.html",
         {
             "request": request,
             "league": league,
-            "teams_count": teams_count,
+            "teams_count": len(teams),
             "players_count": players_count,
+            "team_map": team_map,
+            "latest_week": latest_week,
+            "latest_season": latest_season,
+            "games_played": games_played,
+            "recent_games": recent_games,
+            "division_leaders": division_leaders,
+            "top_leaders": top_leaders,
+            "has_data": has_data,
+            "has_madden_id": has_madden_id,
         },
     )
 

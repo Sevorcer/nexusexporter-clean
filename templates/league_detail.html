@@ -4,16 +4,268 @@
 
 {% block head_extra %}
 <style>
+    /* ── Hero ── */
+    .hub-hero {
+        background:
+            radial-gradient(ellipse at top right, rgba(230,57,70,0.14) 0%, transparent 55%),
+            linear-gradient(180deg, var(--bg-card) 0%, var(--bg-base) 100%);
+        border-bottom: 1px solid var(--border);
+        padding: 56px 24px 40px;
+        position: relative;
+    }
+    .hub-hero::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent), transparent);
+    }
+    .hub-hero-inner {
+        max-width: 1080px;
+        margin: 0 auto;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+    .hub-eyebrow {
+        display: inline-block;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 10px;
+    }
+    .hub-hero h1 {
+        font-size: clamp(2rem, 4.5vw, 3rem);
+        font-weight: 800;
+        letter-spacing: -1px;
+        line-height: 1.05;
+        color: var(--text);
+    }
+    .hub-meta-row {
+        display: flex;
+        gap: 14px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+        align-items: center;
+        color: var(--text-mute);
+        font-size: 0.92rem;
+    }
+    .hub-meta-row .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--text-faint); }
+    .hub-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 6px 12px;
+        border-radius: 999px;
+    }
+    .hub-status.connected { background: rgba(45,212,167,0.14); color: #2dd4a7; border: 1px solid rgba(45,212,167,0.3); }
+    .hub-status.awaiting  { background: rgba(245,158,11,0.14); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .hub-status.unconfigured { background: rgba(173,180,191,0.10); color: var(--text-mute); border: 1px solid rgba(173,180,191,0.2); }
+
+    /* ── KPI strip ── */
+    .kpi-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 32px;
+    }
+    .kpi {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-top: 3px solid var(--accent);
+        border-radius: var(--radius-lg);
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        box-shadow: var(--shadow-card);
+    }
+    .kpi.alt { border-top-color: var(--navy); }
+    .kpi.gold { border-top-color: var(--gold); }
+    .kpi.purple { border-top-color: var(--purple); }
+    .kpi-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text);
+        letter-spacing: -1px;
+        line-height: 1;
+    }
+    .kpi-label {
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+    }
+
+    /* ── Section header ── */
+    .hub-sec-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+    .hub-sec-title {
+        font-size: 0.86rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text-mute);
+    }
+    .hub-sec-title .accent { color: var(--accent); }
+    .hub-sec-link {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text-mute);
+        text-decoration: none;
+        transition: color var(--transition);
+    }
+    .hub-sec-link:hover { color: var(--accent); }
+
+    /* ── Top performers ── */
+    .perf-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 14px;
+        margin-bottom: 36px;
+    }
+    .perf-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        box-shadow: var(--shadow-card);
+        transition: border-color 0.2s, transform 0.2s;
+    }
+    .perf-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .perf-cat {
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+    }
+    .perf-name {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text);
+        text-decoration: none;
+    }
+    .perf-name:hover { color: var(--accent); }
+    .perf-team { font-size: 0.84rem; color: var(--text-mute); }
+    .perf-stat {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--accent);
+        letter-spacing: -0.5px;
+        line-height: 1;
+        margin-top: 4px;
+    }
+    .perf-stat-unit { font-size: 0.74rem; color: var(--text-faint); margin-left: 4px; font-weight: 700; }
+
+    /* ── Scoreboard ── */
+    .score-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+        margin-bottom: 36px;
+    }
+    .score-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 16px 18px;
+        box-shadow: var(--shadow-card);
+        position: relative;
+    }
+    .score-card .badge-final {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+    }
+    .score-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 0;
+        gap: 10px;
+    }
+    .score-row + .score-row { border-top: 1px solid var(--border-soft); }
+    .score-team {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+    .score-team.winner { color: var(--text); }
+    .score-team.loser { color: var(--text-mute); }
+    .score-num {
+        font-size: 1.4rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.5px;
+    }
+    .score-num.winner { color: var(--accent); }
+    .score-num.loser { color: var(--text-faint); }
+
+    /* ── Division leaders ── */
+    .div-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-bottom: 36px;
+    }
+    .div-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 14px 18px;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .div-name {
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+    }
+    .div-team {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text);
+    }
+    .div-record {
+        font-size: 0.86rem;
+        color: var(--text-mute);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Sub-page nav ── */
     .nav-cards {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
     }
     .nav-card {
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: var(--radius-lg);
-        padding: 32px 24px;
+        padding: 28px 20px;
         text-align: center;
         text-decoration: none;
         color: var(--text);
@@ -21,18 +273,29 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
+        box-shadow: var(--shadow-card);
     }
     .nav-card:hover {
         border-color: var(--accent);
         box-shadow: var(--shadow-pop);
-        transform: translateY(-2px);
+        transform: translateY(-3px);
     }
-    .nav-card-icon { font-size: 2rem; }
-    .nav-card-title { font-weight: 600; font-size: 1rem; }
-    @media (max-width: 600px) {
-        .nav-cards { grid-template-columns: 1fr 1fr; }
+    .nav-card-icon { font-size: 1.8rem; }
+    .nav-card-title { font-weight: 700; font-size: 0.95rem; }
+    .nav-card-desc { font-size: 0.78rem; color: var(--text-faint); }
+
+    /* ── Empty hub state ── */
+    .hub-empty {
+        background: var(--bg-card);
+        border: 1px dashed var(--border-strong);
+        border-radius: var(--radius-lg);
+        padding: 40px 28px;
+        text-align: center;
+        margin-bottom: 36px;
     }
+    .hub-empty h3 { color: var(--text); font-size: 1.15rem; margin-bottom: 6px; }
+    .hub-empty p { color: var(--text-mute); font-size: 0.92rem; margin-bottom: 14px; max-width: 520px; margin-left: auto; margin-right: auto; }
 </style>
 {% endblock %}
 
@@ -41,43 +304,172 @@
 {% endblock %}
 
 {% block body %}
-<div class="hero">
-    <h1>{{ league.name }}</h1>
-    <p class="hero-meta">
-        League ID: {{ league.id }}
-        &nbsp;&middot;&nbsp;
-        Madden League ID: {{ league.madden_league_id or "Not set" }}
-    </p>
-</div>
-
-<div class="container-narrow">
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-value">{{ teams_count }}</div>
-            <div class="stat-label">Teams</div>
+<section class="hub-hero">
+    <div class="hub-hero-inner">
+        <div>
+            <div class="hub-eyebrow">League hub</div>
+            <h1>{{ league.name }}</h1>
+            <div class="hub-meta-row">
+                <span>League ID #{{ league.id }}</span>
+                {% if league.madden_league_id %}
+                    <span class="dot"></span>
+                    <span>Madden ID {{ league.madden_league_id }}</span>
+                {% endif %}
+                {% if latest_season is not none %}
+                    <span class="dot"></span>
+                    <span>Season {{ latest_season + 1 }}</span>
+                {% endif %}
+                {% if latest_week is not none %}
+                    <span class="dot"></span>
+                    <span>Through Week {{ latest_week }}</span>
+                {% endif %}
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value">{{ players_count }}</div>
-            <div class="stat-label">Players</div>
+        <div>
+            {% if not has_madden_id %}
+                <span class="hub-status unconfigured">⚠ Madden ID not set</span>
+            {% elif not has_data %}
+                <span class="hub-status awaiting">⏳ Awaiting first export</span>
+            {% else %}
+                <span class="hub-status connected">● Connected</span>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<div class="container">
+
+    {% if not has_data %}
+    <div class="hub-empty">
+        <h3>This league hasn't received any exports yet</h3>
+        <p>
+            {% if not has_madden_id %}
+                Set your Madden League ID on the dashboard, then push an export from the EA Madden Companion App. Standings, rosters, schedule, and stats will appear here automatically.
+            {% else %}
+                Open the EA Madden Companion App, go to <strong>Settings → Export</strong>, and push any category. Standings, rosters, schedule, and stats land here within seconds.
+            {% endif %}
+        </p>
+        <a href="/" class="btn btn-primary">← Back to dashboard</a>
+    </div>
+    {% endif %}
+
+    <!-- KPI strip -->
+    <div class="kpi-strip">
+        <div class="kpi">
+            <span class="kpi-value">{{ teams_count }}</span>
+            <span class="kpi-label">Teams</span>
+        </div>
+        <div class="kpi alt">
+            <span class="kpi-value">{{ players_count }}</span>
+            <span class="kpi-label">Players</span>
+        </div>
+        <div class="kpi gold">
+            <span class="kpi-value">{{ games_played }}</span>
+            <span class="kpi-label">Games played</span>
+        </div>
+        <div class="kpi purple">
+            <span class="kpi-value">{{ (latest_week or 0) }}</span>
+            <span class="kpi-label">Current week</span>
         </div>
     </div>
 
+    <!-- Top performers -->
+    {% if top_leaders.pass_yards or top_leaders.rush_yards or top_leaders.rec_yards %}
+    <div class="hub-sec-head">
+        <span class="hub-sec-title"><span class="accent">●</span> Top performers</span>
+        <a href="/league/{{ league.id }}/leaders" class="hub-sec-link">All stat leaders →</a>
+    </div>
+    <div class="perf-grid">
+        {% set perf_cats = [
+            ("🏈 Passing yards",   top_leaders.pass_yards, "yds"),
+            ("🏃 Rushing yards",   top_leaders.rush_yards, "yds"),
+            ("🙌 Receiving yards", top_leaders.rec_yards,  "yds")
+        ] %}
+        {% for cat_label, entries, unit in perf_cats %}
+            {% if entries %}
+            {% set top = entries[0] %}
+            <div class="perf-card">
+                <div class="perf-cat">{{ cat_label }}</div>
+                <a class="perf-name" href="/league/{{ league.id }}/player/{{ top.player_id }}">{{ top.player_name or "—" }}</a>
+                <div class="perf-team">{{ top.position or "" }}{% if top.team_name %} &middot; {{ top.team_name }}{% endif %}</div>
+                <div><span class="perf-stat">{{ top.value }}</span><span class="perf-stat-unit">{{ unit }}</span></div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Recent scoreboard -->
+    {% if recent_games %}
+    <div class="hub-sec-head">
+        <span class="hub-sec-title"><span class="accent">●</span> Week {{ latest_week }} scoreboard</span>
+        <a href="/league/{{ league.id }}/schedule" class="hub-sec-link">Full schedule →</a>
+    </div>
+    <div class="score-grid">
+        {% for g in recent_games %}
+            {% set home_team = team_map.get(g.home_team_id) %}
+            {% set away_team = team_map.get(g.away_team_id) %}
+            {% set home_score = g.home_score or 0 %}
+            {% set away_score = g.away_score or 0 %}
+            {% set home_won = home_score > away_score %}
+            {% set away_won = away_score > home_score %}
+            <div class="score-card">
+                <span class="badge badge-final">Final</span>
+                <div class="score-row">
+                    <span class="score-team {{ 'winner' if away_won else 'loser' }}">{{ away_team.team_name if away_team else "Away" }}</span>
+                    <span class="score-num {{ 'winner' if away_won else 'loser' }}">{{ away_score }}</span>
+                </div>
+                <div class="score-row">
+                    <span class="score-team {{ 'winner' if home_won else 'loser' }}">{{ home_team.team_name if home_team else "Home" }}</span>
+                    <span class="score-num {{ 'winner' if home_won else 'loser' }}">{{ home_score }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Division leaders -->
+    {% if division_leaders %}
+    <div class="hub-sec-head">
+        <span class="hub-sec-title"><span class="accent">●</span> Division leaders</span>
+        <a href="/league/{{ league.id }}/standings" class="hub-sec-link">Full standings →</a>
+    </div>
+    <div class="div-grid">
+        {% for s in division_leaders %}
+            {% set t = team_map.get(s.team_id) %}
+            <div class="div-card">
+                <span class="div-name">{{ s.division_name or "Unknown" }}</span>
+                <span class="div-team">{{ t.team_name if t else "—" }}</span>
+                <span class="div-record">{{ s.wins or 0 }}-{{ s.losses or 0 }}-{{ s.ties or 0 }}{% if s.seed %} &middot; #{{ s.seed }} seed{% endif %}</span>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Sub-page nav -->
+    <div class="hub-sec-head">
+        <span class="hub-sec-title"><span class="accent">●</span> Browse</span>
+    </div>
     <div class="nav-cards">
         <a href="/league/{{ league.id }}/standings" class="nav-card">
-            <div class="nav-card-icon">&#127942;</div>
+            <div class="nav-card-icon">🏆</div>
             <div class="nav-card-title">Standings</div>
+            <div class="nav-card-desc">Division records &amp; seeds</div>
         </a>
         <a href="/league/{{ league.id }}/roster" class="nav-card">
-            <div class="nav-card-icon">&#128101;</div>
-            <div class="nav-card-title">Roster</div>
+            <div class="nav-card-icon">👥</div>
+            <div class="nav-card-title">Rosters</div>
+            <div class="nav-card-desc">All teams &amp; players</div>
         </a>
         <a href="/league/{{ league.id }}/schedule" class="nav-card">
-            <div class="nav-card-icon">&#128197;</div>
+            <div class="nav-card-icon">📅</div>
             <div class="nav-card-title">Schedule</div>
+            <div class="nav-card-desc">Week-by-week games</div>
         </a>
         <a href="/league/{{ league.id }}/leaders" class="nav-card">
-            <div class="nav-card-icon">&#128202;</div>
-            <div class="nav-card-title">Stat Leaders</div>
+            <div class="nav-card-icon">📊</div>
+            <div class="nav-card-title">Stat leaders</div>
+            <div class="nav-card-desc">Passing, rushing, defense</div>
         </a>
     </div>
 </div>

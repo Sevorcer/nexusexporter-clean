@@ -1125,13 +1125,13 @@ class ApiIngestTests(unittest.TestCase):
         league_id = self.create_league(madden_league_id="22006264")
         response = self.client.get(f"/league/{league_id}")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Madden League ID: 22006264", response.text)
+        self.assertIn("Madden ID 22006264", response.text)
 
     def test_league_detail_page_shows_not_set_when_missing_madden_league_id(self):
         league_id = self.create_league()
         response = self.client.get(f"/league/{league_id}")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Madden League ID: Not set", response.text)
+        self.assertIn("Madden ID not set", response.text)
 
 
     def test_companion_stats_season_type_stored_from_url_path(self):
