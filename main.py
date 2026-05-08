@@ -110,7 +110,7 @@ class Team(SQLModel, table=True):
 class Player(SQLModel, table=True):
     id: int = Field(primary_key=True)
     league_id: int = Field(primary_key=True, foreign_key="league.id")
-    team_id: Optional[int] = Field(default=None, foreign_key="team.id")
+    team_id: Optional[int] = Field(default=None)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     position: Optional[str] = None
@@ -129,8 +129,8 @@ class Schedule(SQLModel, table=True):
     league_id: int = Field(foreign_key="league.id")
     week_number: int
     season_number: int
-    home_team_id: Optional[int] = Field(default=None, foreign_key="team.id")
-    away_team_id: Optional[int] = Field(default=None, foreign_key="team.id")
+    home_team_id: Optional[int] = Field(default=None)
+    away_team_id: Optional[int] = Field(default=None)
     home_score: Optional[int] = None
     away_score: Optional[int] = None
     is_complete: bool = False
@@ -142,7 +142,7 @@ class Standing(SQLModel, table=True):
     )
     id: Optional[int] = Field(default=None, primary_key=True)
     league_id: int = Field(foreign_key="league.id")
-    team_id: Optional[int] = Field(default=None, foreign_key="team.id")
+    team_id: Optional[int] = Field(default=None)
     wins: Optional[int] = None
     losses: Optional[int] = None
     ties: Optional[int] = None
