@@ -5,58 +5,58 @@
    Page-specific overrides go in a small inline <style> block per page.
    ===================================================================== */
 
-/* ---------- Tokens --------------------------------------------------- */
+/* ---------- Tokens (ESPN-DARK) --------------------------------------- */
 :root {
     /* Surfaces */
-    --bg-base:      #f4f6f8;   /* page background */
-    --bg-card:      #ffffff;   /* card background */
-    --bg-elev:      #f0f3f6;   /* table headers, subtle sections */
-    --bg-hover:     #f7f9fb;   /* row hover */
-    --bg-dark:      #002663;   /* navy — for navbar, footer, dark accents */
-    --bg-dark-2:    #001a47;
+    --bg-base:      #0b0d12;   /* page background — near-black */
+    --bg-card:      #14171f;   /* card surface */
+    --bg-elev:      #1a1e28;   /* slightly elevated (table headers) */
+    --bg-hover:     #1f2330;   /* row hover */
+    --bg-dark:      #050609;   /* navbar — deepest */
+    --bg-dark-2:    #000000;
 
     /* Borders */
-    --border:        #e1e4e8;
-    --border-soft:   #eef0f2;
-    --border-strong: #c9cdd1;
+    --border:        #262b38;
+    --border-soft:   #1d2230;
+    --border-strong: #38404f;
 
     /* Text */
-    --text:         #1a1f2c;   /* near-black, high contrast */
-    --text-mute:    #5a6473;
-    --text-faint:   #8b95a3;
-    --text-dim:     #b6bdc7;
-    --text-zero:    #d6dae0;
+    --text:         #f0f2f5;   /* near-white, high contrast */
+    --text-mute:    #adb4bf;
+    --text-faint:   #7d8493;
+    --text-dim:     #565d6b;
+    --text-zero:    #3a4151;
     --text-on-dark: #ffffff;
     --text-on-dark-mute: rgba(255, 255, 255, 0.78);
 
     /* ESPN red — primary accent */
-    --accent:       #c8102e;
-    --accent-hover: #a30d24;
-    --accent-soft:  rgba(200, 16, 46, 0.10);
-    --accent-glow:  rgba(200, 16, 46, 0.18);
+    --accent:       #e63946;
+    --accent-hover: #c8102e;
+    --accent-soft:  rgba(230, 57, 70, 0.14);
+    --accent-glow:  rgba(230, 57, 70, 0.30);
 
-    /* Navy — secondary accent (used as alt CTA, brand color) */
-    --navy:         #002663;
-    --navy-hover:   #001a47;
-    --navy-soft:    rgba(0, 38, 99, 0.10);
+    /* Navy — secondary accent */
+    --navy:         #1d4ed8;
+    --navy-hover:   #1e40af;
+    --navy-soft:    rgba(29, 78, 216, 0.16);
 
     /* Status / award colors */
-    --gold:         #b8860b;
-    --gold-soft:    rgba(184, 134, 11, 0.16);
-    --silver:       #6b7480;
-    --bronze:       #a85a2a;
+    --gold:         #f5c542;
+    --gold-soft:    rgba(245, 197, 66, 0.16);
+    --silver:       #9aa3b1;
+    --bronze:       #d18a4f;
 
-    --success:      #008060;
-    --success-soft: rgba(0, 128, 96, 0.12);
-    --purple:       #6e3acf;
-    --purple-soft:  rgba(110, 58, 207, 0.12);
-    --blue:         #5865F2;     /* Discord blurple, kept for OAuth button */
+    --success:      #2dd4a7;
+    --success-soft: rgba(45, 212, 167, 0.14);
+    --purple:       #a78bfa;
+    --purple-soft:  rgba(167, 139, 250, 0.14);
+    --blue:         #5865F2;     /* Discord blurple */
     --blue-hover:   #4752c4;
 
-    --danger:       #c8102e;
-    --danger-soft:  rgba(200, 16, 46, 0.10);
-    --orange:       #c45e00;
-    --orange-soft:  rgba(196, 94, 0, 0.12);
+    --danger:       #ef4444;
+    --danger-soft:  rgba(239, 68, 68, 0.14);
+    --orange:       #f59e0b;
+    --orange-soft:  rgba(245, 158, 11, 0.14);
 
     /* Radii / shadows */
     --radius-sm: 4px;
@@ -66,10 +66,10 @@
     --radius-xl: 14px;
     --radius-2xl:18px;
 
-    --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-    --shadow-card-hover: 0 6px 16px rgba(15, 23, 42, 0.08), 0 3px 6px rgba(15, 23, 42, 0.05);
-    --shadow-pop:  0 4px 14px rgba(200, 16, 46, 0.18);
-    --shadow-nav:  0 1px 3px rgba(0, 0, 0, 0.12);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.20);
+    --shadow-card-hover: 0 6px 22px rgba(0, 0, 0, 0.45), 0 3px 8px rgba(0, 0, 0, 0.25);
+    --shadow-pop:  0 4px 18px rgba(230, 57, 70, 0.35);
+    --shadow-nav:  0 1px 3px rgba(0, 0, 0, 0.5);
 
     /* Layout */
     --container-narrow: 900px;
@@ -173,7 +173,7 @@ a { color: inherit; }
 
 /* ---------- Hero ----------------------------------------------------- */
 .hero {
-    background: #ffffff;
+    background: var(--bg-card);
     border-bottom: 1px solid var(--border);
     padding: 56px 24px 48px;
     text-align: center;
@@ -292,7 +292,7 @@ a { color: inherit; }
 .input,
 input[type="text"].input,
 .team-filter {
-    background: #ffffff;
+    background: var(--bg-elev);
     border: 1px solid var(--border-strong);
     color: var(--text);
     padding: 10px 14px;

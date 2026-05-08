@@ -10,11 +10,11 @@
   <link rel="stylesheet" href="/static/css/main.css">
   <style>
     :root {
-      --bg:#f4f6f8; --bg2:#f8fafb; --card:#ffffff; --border:#e1e4e8; --border2:#c9cdd1;
-      --green:#c8102e; --green-dim:rgba(200,16,46,.10);     /* repurposed: ESPN red is the primary accent */
-      --blue:#002663; --amber:#c45e00; --red:#c8102e;
-      --navy:#002663; --navy-soft:rgba(0,38,99,.10);
-      --text:#1a1f2c; --text2:#5a6473; --text3:#8b95a3;
+      --bg:#0b0d12; --bg2:#14171f; --card:#14171f; --border:#262b38; --border2:#38404f;
+      --green:#e63946; --green-dim:rgba(230,57,70,.14);     /* repurposed: ESPN red as primary accent */
+      --blue:#1d4ed8; --amber:#f59e0b; --red:#ef4444;
+      --navy:#050609; --navy-soft:rgba(29,78,216,.16);
+      --text:#f0f2f5; --text2:#adb4bf; --text3:#7d8493;
       --fd:'Bebas Neue',sans-serif; --fb:'Barlow',sans-serif; --fm:'JetBrains Mono',monospace;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -60,13 +60,13 @@
     .hbar-right { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 600; color: var(--text2); letter-spacing: 0.04em; text-transform: uppercase; }
     .dot-pulse {
       width: 8px; height: 8px; border-radius: 50%; background: var(--green);
-      box-shadow: 0 0 0 0 rgba(200,16,46,.5);
+      box-shadow: 0 0 0 0 rgba(230,57,70,.5);
       animation: pulse-ring 1.6s ease-out infinite;
     }
     @keyframes pulse-ring {
-      0% { box-shadow: 0 0 0 0 rgba(200,16,46,.5); }
-      70% { box-shadow: 0 0 0 8px rgba(200,16,46,0); }
-      100% { box-shadow: 0 0 0 0 rgba(200,16,46,0); }
+      0% { box-shadow: 0 0 0 0 rgba(230,57,70,.5); }
+      70% { box-shadow: 0 0 0 8px rgba(230,57,70,0); }
+      100% { box-shadow: 0 0 0 0 rgba(230,57,70,0); }
     }
 
     /* ── Flash messages ── */
@@ -76,7 +76,7 @@
       font-size: 0.875rem; font-weight: 500;
     }
     .flash-err {
-      background: rgba(200,16,46,.08); border: 1px solid rgba(200,16,46,.25);
+      background: rgba(230,57,70,.08); border: 1px solid rgba(230,57,70,.25);
       color: var(--red); border-radius: 8px; padding: 10px 16px; margin-bottom: 20px;
       font-size: 0.875rem; font-weight: 500;
     }
@@ -150,7 +150,7 @@
     }
     .code-block span { font-family: var(--fm); font-size: 0.8rem; color: var(--green); word-break: break-all; }
 
-    .info-card { background: var(--green-dim); border: 1px solid rgba(200,16,46,.2); border-radius: 10px; padding: 16px 20px; }
+    .info-card { background: var(--green-dim); border: 1px solid rgba(230,57,70,.2); border-radius: 10px; padding: 16px 20px; }
     .info-card-title { font-family: var(--fd); font-size: 0.8rem; letter-spacing: 0.1em; color: var(--green); margin-bottom: 10px; }
     .info-card p { font-size: 0.8rem; color: var(--text2); line-height: 1.6; }
 
@@ -230,7 +230,7 @@
       display: flex; flex-direction: column; overflow: hidden;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .lcard:hover { border-color: var(--border2); box-shadow: 0 6px 28px rgba(200,16,46,.06); }
+    .lcard:hover { border-color: var(--border2); box-shadow: 0 6px 28px rgba(230,57,70,.06); }
 
     .lcard-top { padding: 22px 22px 16px; }
     .lcard-name { font-family: var(--fd); font-size: 1.5rem; letter-spacing: 0.06em; color: var(--text); margin-bottom: 8px; }
@@ -276,10 +276,10 @@
     .madden-input:focus { border-color: var(--border2); }
     .btn-save {
       font-family: var(--fb); font-size: 0.75rem; font-weight: 700; padding: 6px 14px;
-      border-radius: 6px; background: var(--green-dim); border: 1px solid rgba(200,16,46,.3);
+      border-radius: 6px; background: var(--green-dim); border: 1px solid rgba(230,57,70,.3);
       color: var(--green); cursor: pointer; transition: all 0.15s; white-space: nowrap;
     }
-    .btn-save:hover { background: rgba(200,16,46,.18); }
+    .btn-save:hover { background: rgba(230,57,70,.18); }
 
     .lfoot { padding: 0 20px 20px; }
 
@@ -310,7 +310,8 @@
 
     /* ── First-time welcome hero ── */
     .welcome-hero {
-      background: linear-gradient(135deg, var(--navy) 0%, #001a47 100%);
+      background: linear-gradient(135deg, #1a0610 0%, #050609 60%, #0b1330 100%);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 44px 36px;
       margin-bottom: 32px;
@@ -367,15 +368,17 @@
       font-family: var(--fb);
       font-size: 1rem;
       padding: 12px 16px;
-      background: rgba(255,255,255,0.95);
-      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.18);
       border-radius: 8px;
-      color: var(--text);
+      color: #ffffff;
       outline: none;
     }
+    .welcome-form input::placeholder { color: rgba(255,255,255,0.45); }
     .welcome-form input:focus {
-      background: #ffffff;
-      box-shadow: 0 0 0 3px rgba(200,16,46,0.35);
+      background: rgba(255,255,255,0.10);
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(230,57,70,0.25);
     }
     .welcome-form button {
       font-family: var(--fb);
@@ -389,7 +392,7 @@
       cursor: pointer;
       transition: background 0.15s, transform 0.1s;
     }
-    .welcome-form button:hover { background: #a30d24; transform: translateY(-1px); }
+    .welcome-form button:hover { background: var(--accent-hover, #c8102e); transform: translateY(-1px); }
     .welcome-bullets {
       display: flex;
       gap: 22px;
@@ -416,19 +419,151 @@
       margin-left: 8px;
     }
     .status-pill.connected {
-      background: rgba(0,128,96,0.10);
-      color: #008060;
-      border: 1px solid rgba(0,128,96,0.25);
+      background: rgba(45,212,167,0.14);
+      color: #2dd4a7;
+      border: 1px solid rgba(45,212,167,0.30);
     }
     .status-pill.awaiting {
-      background: rgba(196,94,0,0.10);
-      color: #c45e00;
-      border: 1px solid rgba(196,94,0,0.25);
+      background: rgba(245,158,11,0.14);
+      color: #f59e0b;
+      border: 1px solid rgba(245,158,11,0.30);
     }
     .status-pill.unconfigured {
-      background: rgba(91,103,123,0.10);
-      color: #5a6473;
-      border: 1px solid rgba(91,103,123,0.20);
+      background: rgba(173,180,191,0.10);
+      color: var(--text2);
+      border: 1px solid rgba(173,180,191,0.20);
+    }
+
+    /* ── Inline help (expandable details) ── */
+    details.help-tip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0;
+      margin-top: 8px;
+    }
+    details.help-tip > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 9px 14px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    details.help-tip > summary::-webkit-details-marker { display: none; }
+    details.help-tip > summary::before {
+      content: '▶';
+      font-size: 0.65rem;
+      transition: transform 0.15s;
+      display: inline-block;
+      color: var(--text3);
+    }
+    details.help-tip[open] > summary::before { transform: rotate(90deg); }
+    details.help-tip > .tip-body {
+      padding: 4px 14px 14px 28px;
+      font-size: 0.84rem;
+      color: var(--text2);
+      line-height: 1.55;
+    }
+    details.help-tip ol, details.help-tip ul {
+      margin-top: 6px;
+      padding-left: 18px;
+    }
+    details.help-tip li { margin-bottom: 4px; }
+    details.help-tip code {
+      font-family: var(--fm);
+      font-size: 0.78rem;
+      color: var(--green);
+      background: var(--card);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    /* ── Pro tips / FAQ section ── */
+    .tips-sec { margin-bottom: 52px; }
+    .tips-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .tip-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--green);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .tip-card.blue   { border-left-color: var(--blue); }
+    .tip-card.amber  { border-left-color: var(--amber); }
+    .tip-card.purple { border-left-color: #a78bfa; }
+    .tip-card-title {
+      font-family: var(--fd);
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      color: var(--text);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tip-card-body { font-size: 0.86rem; color: var(--text2); line-height: 1.55; }
+    .tip-card-body code {
+      font-family: var(--fm);
+      font-size: 0.78rem;
+      color: var(--green);
+      background: var(--bg);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    /* FAQ accordion */
+    .faq { display: flex; flex-direction: column; gap: 10px; }
+    details.faq-q {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0;
+    }
+    details.faq-q > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 14px 20px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      user-select: none;
+    }
+    details.faq-q > summary::-webkit-details-marker { display: none; }
+    details.faq-q > summary::after {
+      content: '+';
+      font-size: 1.3rem;
+      color: var(--text3);
+      font-weight: 700;
+      transition: transform 0.15s;
+    }
+    details.faq-q[open] > summary::after { transform: rotate(45deg); color: var(--green); }
+    details.faq-q > .faq-a {
+      padding: 0 20px 18px;
+      color: var(--text2);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    details.faq-q > .faq-a code {
+      font-family: var(--fm);
+      font-size: 0.8rem;
+      color: var(--green);
+      background: var(--bg);
+      padding: 1px 6px;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -686,9 +821,9 @@
               <div class="ob-card-title">WHO CAN RUN ADMIN COMMANDS?</div>
               <p style="font-size:.85rem;color:var(--text2);line-height:1.6;margin-bottom:10px;">By default, admin slash commands (like <code style="font-family:var(--fm);font-size:.78rem;color:var(--green);">/setup</code> and <code style="font-family:var(--fm);font-size:.78rem;color:var(--green);">/create_weekly_channels</code>) are restricted to users with one of these roles:</p>
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <span style="background:var(--green-dim);border:1px solid rgba(200,16,46,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">Commissioner</span>
-                <span style="background:var(--green-dim);border:1px solid rgba(200,16,46,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">Admin</span>
-                <span style="background:var(--green-dim);border:1px solid rgba(200,16,46,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">COMMISH</span>
+                <span style="background:var(--green-dim);border:1px solid rgba(230,57,70,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">Commissioner</span>
+                <span style="background:var(--green-dim);border:1px solid rgba(230,57,70,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">Admin</span>
+                <span style="background:var(--green-dim);border:1px solid rgba(230,57,70,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">COMMISH</span>
               </div>
               <p style="font-size:.78rem;color:var(--text3);margin-top:8px;">You can customize allowed roles with <code style="font-family:var(--fm);font-size:.75rem;color:var(--text2);">/setup admin_roles</code>.</p>
             </div>
@@ -892,6 +1027,32 @@
                   <button type="submit" class="btn-save">Save</button>
                 </form>
               </div>
+              <details class="help-tip">
+                <summary>Where do I find my Madden League ID?</summary>
+                <div class="tip-body">
+                  <ol>
+                    <li>Open the <strong>Madden NFL Companion App</strong> on your phone.</li>
+                    <li>Sign in and pick your <strong>Connected Franchise</strong>.</li>
+                    <li>Tap the league name at the top — the URL shown contains the league ID (long number).</li>
+                    <li>Or look at the address inside the EA Companion web view: <code>.../{platform}/<strong>{league_id}</strong>/...</code></li>
+                    <li>Paste the number above and hit <strong>Save</strong>. Companion exports for that league will route here.</li>
+                  </ol>
+                </div>
+              </details>
+              {% if not meta.get('has_data') and league.madden_league_id %}
+              <details class="help-tip" open>
+                <summary>No data yet? Test your export</summary>
+                <div class="tip-body">
+                  <ol>
+                    <li>In the Companion App, go to <strong>Settings → Export</strong>.</li>
+                    <li>Confirm the URL is <code>{{ request.url.scheme }}://{{ request.url.netloc }}</code> (no trailing slash, no path).</li>
+                    <li>Pick a category (e.g. <strong>Schedule</strong>) and tap <strong>Export</strong>.</li>
+                    <li>Refresh this page — the status pill should flip to <strong>Connected</strong>.</li>
+                    <li>If it doesn't, double-check your <strong>Madden League ID</strong> matches the one shown in the Companion App.</li>
+                  </ol>
+                </div>
+              </details>
+              {% endif %}
             </div>
 
             <div class="lfoot">
@@ -903,6 +1064,59 @@
     {% else %}
       <div class="empty-state">No leagues yet — create your first one below!</div>
     {% endif %}
+  </div>
+
+  <!-- ════════════════════════════════════
+       SECTION 2.5 — Pro Tips + FAQ
+  ════════════════════════════════════ -->
+  <div class="tips-sec">
+    <div class="sec-label">PRO TIPS</div>
+    <div class="tips-grid" style="margin-bottom: 28px;">
+      <div class="tip-card">
+        <div class="tip-card-title">🔁 Re-exports are safe</div>
+        <div class="tip-card-body">Push the same data twice and nothing breaks. Standings, rosters, and stats upsert by Madden's own row IDs — duplicates are deduped automatically.</div>
+      </div>
+      <div class="tip-card blue">
+        <div class="tip-card-title">🏟️ One server per league</div>
+        <div class="tip-card-body">Each Discord server maps to one league via <code>/setup league league_id:&lt;id&gt;</code>. Running multiple franchises? Create one league here per server.</div>
+      </div>
+      <div class="tip-card amber">
+        <div class="tip-card-title">📅 Pre-/Reg-/Post-season</div>
+        <div class="tip-card-body">The Companion App tags exports with the season phase. Filter the API or bot output by <code>season_type=pre|reg|post</code> when you need a specific window.</div>
+      </div>
+      <div class="tip-card purple">
+        <div class="tip-card-title">⚡ Auto-export every sim</div>
+        <div class="tip-card-body">Turn on <strong>Auto-Export</strong> in the Companion App. The bot can auto-post matchup previews and weekly recaps — no manual ingest needed.</div>
+      </div>
+    </div>
+
+    <div class="sec-label" style="margin-top: 32px;">COMMON QUESTIONS</div>
+    <div class="faq">
+      <details class="faq-q">
+        <summary>Do I have to use the Discord bot?</summary>
+        <div class="faq-a">No — the web dashboard works on its own. You can browse standings, rosters, schedule, and leaders from any league page. The bot adds slash commands and AI-generated weekly news on top.</div>
+      </details>
+      <details class="faq-q">
+        <summary>What if I run multiple Madden leagues?</summary>
+        <div class="faq-a">Create one league here per franchise. Each gets its own ID and Madden League ID — exports from the Companion App route by Madden League ID, so leagues don't mix even if they share a Discord account.</div>
+      </details>
+      <details class="faq-q">
+        <summary>Where do I get a Discord bot token?</summary>
+        <div class="faq-a">Visit <code>discord.com/developers/applications</code>, create a new app, go to the <strong>Bot</strong> tab, click <strong>Reset Token</strong>, and copy. Drop it in the bot's <code>.env</code> as <code>DISCORD_BOT_TOKEN</code>. Detailed steps live in the bot repo's README.</div>
+      </details>
+      <details class="faq-q">
+        <summary>How is my API key used?</summary>
+        <div class="faq-a">The API key authenticates direct calls to <code>/api/{league_id}/...</code> for read/write access. The Madden Companion App does <em>not</em> need it — it routes by Madden League ID. Only share the key with services you control.</div>
+      </details>
+      <details class="faq-q">
+        <summary>My export went through but standings are blank — why?</summary>
+        <div class="faq-a">The Companion App exports each category separately. Make sure you've exported <strong>Standings</strong> at least once (Settings → Export → Standings). Schedules, rosters, and stats are independent endpoints.</div>
+      </details>
+      <details class="faq-q">
+        <summary>Can I delete a league?</summary>
+        <div class="faq-a">Not from the UI yet — open an issue if you need this. For now, leagues are kept so you can keep historical data when re-importing later.</div>
+      </details>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════

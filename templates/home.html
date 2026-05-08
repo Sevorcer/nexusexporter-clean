@@ -23,7 +23,8 @@
     /* Hero */
     .home-hero {
         background:
-            linear-gradient(180deg, #ffffff 0%, var(--bg-base) 100%);
+            radial-gradient(ellipse at top, rgba(230,57,70,0.10) 0%, transparent 60%),
+            linear-gradient(180deg, var(--bg-card) 0%, var(--bg-base) 100%);
         border-bottom: 1px solid var(--border);
         padding: 80px 24px 72px;
         text-align: center;
@@ -85,7 +86,7 @@
         flex-wrap: wrap;
     }
     .hero-badges .pill {
-        background: #ffffff;
+        background: var(--bg-card);
         border: 1px solid var(--border);
         color: var(--text-mute);
         font-size: 0.82rem;
@@ -99,7 +100,7 @@
 
     /* Sections */
     section.home-section { padding: 80px 24px; }
-    section.home-section.alt { background: #ffffff; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    section.home-section.alt { background: var(--bg-card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
     .container-home { max-width: 1080px; margin: 0 auto; }
     .section-eyebrow {
         display: inline-block;
@@ -239,12 +240,12 @@
         position: absolute;
         top: calc(100% + 10px);
         right: 0;
-        background: #ffffff;
+        background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: var(--radius-lg);
         padding: 22px;
         width: 290px;
-        box-shadow: 0 10px 40px rgba(15, 23, 42, 0.15);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
         text-align: center;
         color: var(--text);
     }
