@@ -75,15 +75,26 @@
         <p class="subtitle">{{ league.name }}</p>
     </div>
 
+    {% set categories = [
+        ("pass_yards",  "🏈 Passing Yards"),
+        ("rush_yards",  "🏃 Rushing Yards"),
+        ("rec_yards",   "🙌 Receiving Yards"),
+        ("total_tds",   "🎯 Total Touchdowns"),
+        ("sacks",       "💥 Sacks"),
+        ("ints",        "🛡 Interceptions")
+    ] %}
+    {% set ns = namespace(total=0) %}
+    {% for key, _ in categories %}
+        {% set ns.total = ns.total + (leaders[key]|length if key in leaders else 0) %}
+    {% endfor %}
+    {% if ns.total == 0 %}
+        <div class="empty-state">
+            <h3>No stats yet</h3>
+            <p>Stat leaders will appear here once you sim a week and complete an export from the Madden Companion App.</p>
+            <a href="/" class="btn btn-primary">← Back to dashboard</a>
+        </div>
+    {% else %}
     <div class="leaders-grid">
-        {% set categories = [
-            ("pass_yards",  "🏈 Passing Yards"),
-            ("rush_yards",  "🏃 Rushing Yards"),
-            ("rec_yards",   "🙌 Receiving Yards"),
-            ("total_tds",   "🎯 Total Touchdowns"),
-            ("sacks",       "💥 Sacks"),
-            ("ints",        "🛡 Interceptions")
-        ] %}
         {% for key, label in categories %}
             <div class="leader-card">
                 <div class="card-header">{{ label }}</div>
@@ -104,5 +115,6 @@
             </div>
         {% endfor %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}

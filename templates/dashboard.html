@@ -10,10 +10,11 @@
   <link rel="stylesheet" href="/static/css/main.css">
   <style>
     :root {
-      --bg:#07070F; --bg2:#0D0D1C; --card:#0F0F20; --border:#1C1C38; --border2:#252545;
-      --green:#00E87A; --green-dim:rgba(0,232,122,.1);
-      --blue:#3B82F6; --amber:#F59E0B; --red:#EF4444;
-      --text:#EEEEFF; --text2:#9898BB; --text3:#55557A;
+      --bg:#f4f6f8; --bg2:#f8fafb; --card:#ffffff; --border:#e1e4e8; --border2:#c9cdd1;
+      --green:#c8102e; --green-dim:rgba(200,16,46,.10);     /* repurposed: ESPN red is the primary accent */
+      --blue:#002663; --amber:#c45e00; --red:#c8102e;
+      --navy:#002663; --navy-soft:rgba(0,38,99,.10);
+      --text:#1a1f2c; --text2:#5a6473; --text3:#8b95a3;
       --fd:'Bebas Neue',sans-serif; --fb:'Barlow',sans-serif; --fm:'JetBrains Mono',monospace;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,30 +23,31 @@
     /* ── Navbar ── */
     .navbar {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(7,7,15,0.85); backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
+      background: var(--navy);
+      border-bottom: 3px solid var(--green);
       padding: 0 28px; height: 60px;
       display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
     }
     .nav-left { display: flex; align-items: center; gap: 10px; }
     .logo-mark {
       width: 34px; height: 34px; background: var(--green); border-radius: 6px;
       display: flex; align-items: center; justify-content: center;
-      font-family: var(--fd); font-size: 1.2rem; color: #07070F; font-weight: 900;
+      font-family: var(--fd); font-size: 1.2rem; color: #ffffff; font-weight: 900;
       letter-spacing: 0;
     }
-    .logo-text { font-family: var(--fd); font-size: 1.35rem; letter-spacing: 0.08em; color: var(--text); }
+    .logo-text { font-family: var(--fd); font-size: 1.35rem; letter-spacing: 0.08em; color: #ffffff; }
     .logo-text span { color: var(--green); }
     .nav-right { display: flex; align-items: center; gap: 16px; }
-    .nav-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border2); }
-    .nav-username { font-family: var(--fb); font-weight: 600; font-size: 0.875rem; color: var(--text2); }
+    .nav-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--green); }
+    .nav-username { font-family: var(--fb); font-weight: 600; font-size: 0.875rem; color: rgba(255,255,255,0.82); }
     .btn-logout {
       font-family: var(--fb); font-size: 0.8rem; font-weight: 600;
-      padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border2);
-      background: transparent; color: var(--text2); cursor: pointer; transition: all 0.18s;
+      padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.25);
+      background: transparent; color: rgba(255,255,255,0.82); cursor: pointer; transition: all 0.18s;
       text-decoration: none;
     }
-    .btn-logout:hover { border-color: var(--red); color: var(--red); background: rgba(239,68,68,.08); }
+    .btn-logout:hover { border-color: #ffffff; color: #ffffff; background: rgba(255,255,255,0.08); }
 
     /* ── Header bar ── */
     .hbar {
@@ -58,23 +60,23 @@
     .hbar-right { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 600; color: var(--text2); letter-spacing: 0.04em; text-transform: uppercase; }
     .dot-pulse {
       width: 8px; height: 8px; border-radius: 50%; background: var(--green);
-      box-shadow: 0 0 0 0 rgba(0,232,122,.5);
+      box-shadow: 0 0 0 0 rgba(200,16,46,.5);
       animation: pulse-ring 1.6s ease-out infinite;
     }
     @keyframes pulse-ring {
-      0% { box-shadow: 0 0 0 0 rgba(0,232,122,.5); }
-      70% { box-shadow: 0 0 0 8px rgba(0,232,122,0); }
-      100% { box-shadow: 0 0 0 0 rgba(0,232,122,0); }
+      0% { box-shadow: 0 0 0 0 rgba(200,16,46,.5); }
+      70% { box-shadow: 0 0 0 8px rgba(200,16,46,0); }
+      100% { box-shadow: 0 0 0 0 rgba(200,16,46,0); }
     }
 
     /* ── Flash messages ── */
     .flash-ok {
-      background: rgba(0,232,122,.08); border: 1px solid rgba(0,232,122,.25);
-      color: var(--green); border-radius: 8px; padding: 10px 16px; margin-bottom: 20px;
+      background: rgba(0,128,96,.08); border: 1px solid rgba(0,128,96,.25);
+      color: #008060; border-radius: 8px; padding: 10px 16px; margin-bottom: 20px;
       font-size: 0.875rem; font-weight: 500;
     }
     .flash-err {
-      background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.25);
+      background: rgba(200,16,46,.08); border: 1px solid rgba(200,16,46,.25);
       color: var(--red); border-radius: 8px; padding: 10px 16px; margin-bottom: 20px;
       font-size: 0.875rem; font-weight: 500;
     }
@@ -148,7 +150,7 @@
     }
     .code-block span { font-family: var(--fm); font-size: 0.8rem; color: var(--green); word-break: break-all; }
 
-    .info-card { background: var(--green-dim); border: 1px solid rgba(0,232,122,.2); border-radius: 10px; padding: 16px 20px; }
+    .info-card { background: var(--green-dim); border: 1px solid rgba(200,16,46,.2); border-radius: 10px; padding: 16px 20px; }
     .info-card-title { font-family: var(--fd); font-size: 0.8rem; letter-spacing: 0.1em; color: var(--green); margin-bottom: 10px; }
     .info-card p { font-size: 0.8rem; color: var(--text2); line-height: 1.6; }
 
@@ -186,7 +188,7 @@
     .done-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
     .btn-green {
       font-family: var(--fb); font-size: 0.875rem; font-weight: 700; padding: 12px 28px;
-      border-radius: 8px; background: var(--green); color: #07070F; border: none; cursor: pointer;
+      border-radius: 8px; background: var(--green); color: #ffffff; border: none; cursor: pointer;
       text-decoration: none; display: inline-block; transition: opacity 0.15s;
     }
     .btn-green:hover { opacity: 0.88; }
@@ -214,7 +216,7 @@
       background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s;
     }
     .btn-step:hover { border-color: var(--green); color: var(--green); }
-    .btn-step.primary { background: var(--green); color: #07070F; border-color: var(--green); }
+    .btn-step.primary { background: var(--green); color: #ffffff; border-color: var(--green); }
     .btn-step.primary:hover { opacity: 0.88; }
     .btn-step:disabled { opacity: 0.3; cursor: not-allowed; }
 
@@ -228,7 +230,7 @@
       display: flex; flex-direction: column; overflow: hidden;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .lcard:hover { border-color: var(--border2); box-shadow: 0 6px 28px rgba(0,232,122,.06); }
+    .lcard:hover { border-color: var(--border2); box-shadow: 0 6px 28px rgba(200,16,46,.06); }
 
     .lcard-top { padding: 22px 22px 16px; }
     .lcard-name { font-family: var(--fd); font-size: 1.5rem; letter-spacing: 0.06em; color: var(--text); margin-bottom: 8px; }
@@ -274,10 +276,10 @@
     .madden-input:focus { border-color: var(--border2); }
     .btn-save {
       font-family: var(--fb); font-size: 0.75rem; font-weight: 700; padding: 6px 14px;
-      border-radius: 6px; background: var(--green-dim); border: 1px solid rgba(0,232,122,.3);
+      border-radius: 6px; background: var(--green-dim); border: 1px solid rgba(200,16,46,.3);
       color: var(--green); cursor: pointer; transition: all 0.15s; white-space: nowrap;
     }
-    .btn-save:hover { background: rgba(0,232,122,.18); }
+    .btn-save:hover { background: rgba(200,16,46,.18); }
 
     .lfoot { padding: 0 20px 20px; }
 
@@ -301,10 +303,133 @@
     .cr-input:focus { border-color: var(--green); }
     .btn-create {
       font-family: var(--fb); font-size: 0.875rem; font-weight: 700; padding: 10px 24px;
-      border-radius: 8px; background: var(--green); color: #07070F; border: none;
+      border-radius: 8px; background: var(--green); color: #ffffff; border: none;
       cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
     }
     .btn-create:hover { opacity: 0.88; }
+
+    /* ── First-time welcome hero ── */
+    .welcome-hero {
+      background: linear-gradient(135deg, var(--navy) 0%, #001a47 100%);
+      border-radius: 14px;
+      padding: 44px 36px;
+      margin-bottom: 32px;
+      color: #ffffff;
+      position: relative;
+      overflow: hidden;
+    }
+    .welcome-hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--green);
+    }
+    .welcome-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.10);
+      color: #ffffff;
+      font-family: var(--fb);
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+    .welcome-hero h2 {
+      font-family: var(--fd);
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+    .welcome-hero p.lead {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.82);
+      line-height: 1.6;
+      max-width: 600px;
+      margin-bottom: 24px;
+    }
+    .welcome-form {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      max-width: 520px;
+    }
+    .welcome-form input {
+      flex: 1;
+      min-width: 220px;
+      font-family: var(--fb);
+      font-size: 1rem;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.95);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: var(--text);
+      outline: none;
+    }
+    .welcome-form input:focus {
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(200,16,46,0.35);
+    }
+    .welcome-form button {
+      font-family: var(--fb);
+      font-size: 0.95rem;
+      font-weight: 800;
+      padding: 12px 24px;
+      border-radius: 8px;
+      background: var(--green);
+      color: #ffffff;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .welcome-form button:hover { background: #a30d24; transform: translateY(-1px); }
+    .welcome-bullets {
+      display: flex;
+      gap: 22px;
+      margin-top: 22px;
+      flex-wrap: wrap;
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.78);
+    }
+    .welcome-bullets span { display: inline-flex; align-items: center; gap: 6px; }
+    .welcome-bullets b { color: var(--green); font-weight: 800; margin-right: 4px; }
+
+    /* ── Ingest status pill on league card ── */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--fb);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-left: 8px;
+    }
+    .status-pill.connected {
+      background: rgba(0,128,96,0.10);
+      color: #008060;
+      border: 1px solid rgba(0,128,96,0.25);
+    }
+    .status-pill.awaiting {
+      background: rgba(196,94,0,0.10);
+      color: #c45e00;
+      border: 1px solid rgba(196,94,0,0.25);
+    }
+    .status-pill.unconfigured {
+      background: rgba(91,103,123,0.10);
+      color: #5a6473;
+      border: 1px solid rgba(91,103,123,0.20);
+    }
   </style>
 </head>
 <body>
@@ -341,6 +466,28 @@
   {% endif %}
   {% if error %}
     <div class="flash-err">{{ error }}</div>
+  {% endif %}
+
+  {% if not leagues %}
+  <!-- ════════════════════════════════════
+       FIRST-TIME WELCOME — shown only when no leagues yet
+  ════════════════════════════════════ -->
+  <div class="welcome-hero">
+    <div class="welcome-eyebrow">⚡ Welcome, {{ user.username }}</div>
+    <h2>LET'S CREATE YOUR FIRST LEAGUE</h2>
+    <p class="lead">Name your franchise — you'll get a unique ID and API key. Paste a single URL into the Madden Companion App and you're ingesting data in under 60 seconds.</p>
+    <form method="post" action="/create_league" class="welcome-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="text" name="league_name" placeholder="e.g. Sunday Night Franchise" required>
+      <button type="submit">Create league →</button>
+    </form>
+    <div class="welcome-bullets">
+      <span><b>1.</b> Create league</span>
+      <span><b>2.</b> Paste URL into Companion App</span>
+      <span><b>3.</b> Sim &amp; sync</span>
+      <span><b>4.</b> Add Discord bot</span>
+    </div>
+  </div>
   {% endif %}
 
   <!-- ════════════════════════════════════
@@ -444,13 +591,14 @@
               </li>
               <li>
                 <span class="snum">3</span>
-                <span>Go to <strong>Settings → Export</strong> and paste the following URL:</span>
+                <span>Go to <strong>Settings → Export</strong> and paste the following URL exactly as-is:</span>
               </li>
             </ol>
             <div class="code-block" style="margin:10px 0 10px 38px;">
-              <span>https://nexusexporter-clean-production.up.railway.app</span>
+              <span id="companion-url">{{ request.url.scheme }}://{{ request.url.netloc }}</span>
               <button class="btn-copy" onclick="copyBlock(this)">Copy</button>
             </div>
+            <p style="font-size:.75rem;color:var(--text3);margin:0 0 10px 38px;">The Companion App appends platform + league path automatically — no API key in the URL.</p>
             <ol class="ob-steps-list" start="4" style="counter-reset: step 3;">
               <li>
                 <span class="snum">4</span>
@@ -538,9 +686,9 @@
               <div class="ob-card-title">WHO CAN RUN ADMIN COMMANDS?</div>
               <p style="font-size:.85rem;color:var(--text2);line-height:1.6;margin-bottom:10px;">By default, admin slash commands (like <code style="font-family:var(--fm);font-size:.78rem;color:var(--green);">/setup</code> and <code style="font-family:var(--fm);font-size:.78rem;color:var(--green);">/create_weekly_channels</code>) are restricted to users with one of these roles:</p>
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <span style="background:var(--green-dim);border:1px solid rgba(0,232,122,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">Commissioner</span>
-                <span style="background:var(--green-dim);border:1px solid rgba(0,232,122,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">Admin</span>
-                <span style="background:var(--green-dim);border:1px solid rgba(0,232,122,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">COMMISH</span>
+                <span style="background:var(--green-dim);border:1px solid rgba(200,16,46,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">Commissioner</span>
+                <span style="background:var(--green-dim);border:1px solid rgba(200,16,46,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">Admin</span>
+                <span style="background:var(--green-dim);border:1px solid rgba(200,16,46,.2);color:var(--green);font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:5px;">COMMISH</span>
               </div>
               <p style="font-size:.78rem;color:var(--text3);margin-top:8px;">You can customize allowed roles with <code style="font-family:var(--fm);font-size:.75rem;color:var(--text2);">/setup admin_roles</code>.</p>
             </div>
@@ -688,13 +836,14 @@
           <div class="lcard">
             <div class="lcard-top">
               <div class="lcard-name">{{ league.name }}</div>
-              <div class="id-badge">
-                #{{ league.id }}
-                &nbsp;·&nbsp;
-                {% if league.madden_league_id %}
-                  <span class="dot-g"></span>
+              <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+                <div class="id-badge">#{{ league.id }}</div>
+                {% if not league.madden_league_id %}
+                  <span class="status-pill unconfigured">⚠ Set Madden ID</span>
+                {% elif not meta.get('has_data') %}
+                  <span class="status-pill awaiting">⏳ Awaiting first export</span>
                 {% else %}
-                  <span class="dot-a"></span>
+                  <span class="status-pill connected">● Connected</span>
                 {% endif %}
               </div>
             </div>

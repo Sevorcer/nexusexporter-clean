@@ -114,7 +114,11 @@
     {% endfor %}
 
     {% if not team_players %}
-        <div class="empty-state">No teams or players have been imported yet.</div>
+        <div class="empty-state">
+            <h3>No rosters yet</h3>
+            <p>Rosters will appear here once you complete an export from the Madden Companion App.</p>
+            <a href="/" class="btn btn-primary">← Back to dashboard</a>
+        </div>
     {% endif %}
 </div>
 {% endblock %}

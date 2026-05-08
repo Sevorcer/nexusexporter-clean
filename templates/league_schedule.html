@@ -142,7 +142,11 @@
     {% endfor %}
 
     {% if not week_groups %}
-        <div class="empty-state">No games scheduled yet.</div>
+        <div class="empty-state">
+            <h3>No schedule yet</h3>
+            <p>Your schedule will appear here once you complete an export from the Madden Companion App.</p>
+            <a href="/" class="btn btn-primary">← Back to dashboard</a>
+        </div>
     {% endif %}
 </div>
 {% endblock %}

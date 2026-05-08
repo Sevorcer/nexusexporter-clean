@@ -43,6 +43,13 @@
         <p class="subtitle">{{ league.name }}</p>
     </div>
 
+    {% if not standings %}
+        <div class="empty-state">
+            <h3>No standings yet</h3>
+            <p>Standings will appear here once you complete an export from the Madden Companion App.</p>
+            <a href="/" class="btn btn-primary">← Back to dashboard</a>
+        </div>
+    {% else %}
     {% set divisions = {} %}
     {% for standing in standings %}
         {% set div = standing.division_name or "Unknown Division" %}
@@ -91,5 +98,6 @@
             </tbody>
         </table>
     </div>
+    {% endif %}
 </div>
 {% endblock %}
