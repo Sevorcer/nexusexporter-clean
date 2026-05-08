@@ -29,8 +29,10 @@ if not os.environ.get("SECRET_KEY"):
 DISCORD_CLIENT_ID = _require_env("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = _require_env("DISCORD_CLIENT_SECRET")
 DISCORD_REDIRECT_URI = _require_env("DISCORD_REDIRECT_URI")
+DISCORD_BOT_CLIENT_ID = os.environ.get("DISCORD_BOT_CLIENT_ID", "").strip() or None
 
 MAX_MADDEN_LEAGUE_ID_LENGTH = 64
+MAX_BOT_CLIENT_ID_LENGTH = 32
 COMPANION_JSON_FORM_KEYS = ("payload", "data", "body", "json")
 COMPANION_DEBUG_PREVIEW_LIMIT = 1000
 COMPANION_DEBUG_LOG_ENABLED = os.environ.get("COMPANION_DEBUG_LOG", "").strip().lower() in {"1", "true"}

@@ -9,6 +9,7 @@ class User(SQLModel, table=True):
     discord_id: str
     username: str
     avatar: Optional[str] = None
+    bot_client_id: Optional[str] = Field(default=None)
     leagues: List["League"] = Relationship(back_populates="user")
 
 

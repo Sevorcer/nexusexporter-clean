@@ -72,3 +72,6 @@ def create_db():
             connection.exec_driver_sql(
                 "ALTER TABLE schedule ADD COLUMN IF NOT EXISTS season_type VARCHAR"
             )
+            connection.exec_driver_sql(
+                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS bot_client_id VARCHAR'
+            )

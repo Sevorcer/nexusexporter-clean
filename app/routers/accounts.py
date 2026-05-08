@@ -12,6 +12,7 @@ from app.config import (
     DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET,
     DISCORD_REDIRECT_URI,
+    MAX_BOT_CLIENT_ID_LENGTH,
     MAX_MADDEN_LEAGUE_ID_LENGTH,
 )
 from app.db import get_session
@@ -177,4 +178,38 @@ def set_madden_id(
     session.add(league)
     session.commit()
     request.session["flash_msg"] = f"Madden league ID saved for '{league.name}'."
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/set_bot_client_id")
+def set_bot_client_id(
+    request: Request,
+    bot_client_id: Optional[str] = Form(default=""),
+    csrf_token: str = Form(...),
+    session: Session = Depends(get_session),
+):
+    if not validate_csrf(request, csrf_token):
+        request.session["flash_error"] = "Session expired; please reload and try again."
+        return RedirectResponse("/", status_code=303)
+    user = get_current_user(request, session)
+    if not user:
+        request.session["flash_error"] = "Please log in to update bot settings."
+        return RedirectResponse("/login", status_code=303)
+
+    cleaned = (bot_client_id or "").strip()
+    if cleaned and not cleaned.isdigit():
+        request.session["flash_error"] = "Bot Client ID must be numeric (Discord application snowflake ID)."
+        return RedirectResponse("/", status_code=303)
+    if len(cleaned) > MAX_BOT_CLIENT_ID_LENGTH:
+        request.session["flash_error"] = (
+            f"Bot Client ID must be {MAX_BOT_CLIENT_ID_LENGTH} characters or less."
+        )
+        return RedirectResponse("/", status_code=303)
+
+    user.bot_client_id = cleaned or None
+    session.add(user)
+    session.commit()
+    request.session["flash_msg"] = (
+        "Bot Client ID saved." if cleaned else "Bot Client ID cleared."
+    )
     return RedirectResponse("/", status_code=303)

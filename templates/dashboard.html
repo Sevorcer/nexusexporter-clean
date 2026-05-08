@@ -521,6 +521,115 @@
       border-radius: 4px;
     }
 
+    /* ── Visual walkthrough tour ── */
+    .tour-sec { margin-bottom: 52px; }
+    .tour-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .tour-step {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .tour-step:hover { border-color: var(--border2); transform: translateY(-2px); }
+    .tour-frame {
+      aspect-ratio: 16 / 10;
+      background:
+        linear-gradient(135deg, rgba(230,57,70,0.08) 0%, rgba(29,78,216,0.08) 100%),
+        var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .tour-frame::before {
+      content: '';
+      position: absolute;
+      top: 12px; left: 12px;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 14px 0 0 var(--amber), 28px 0 0 var(--green);
+    }
+    .tour-frame img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .tour-frame .tour-mock {
+      text-align: center;
+      padding: 24px;
+      max-width: 80%;
+    }
+    .tour-frame .tour-mock-icon {
+      font-size: 2.4rem;
+      margin-bottom: 8px;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+    }
+    .tour-frame .tour-mock-line {
+      height: 6px;
+      background: var(--border2);
+      border-radius: 3px;
+      margin: 6px auto;
+    }
+    .tour-frame .tour-mock-line.short { width: 60%; }
+    .tour-frame .tour-mock-line.med   { width: 80%; }
+    .tour-frame .tour-mock-line.accent { background: var(--green); width: 40%; }
+    .tour-step-body {
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .tour-step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px; height: 22px;
+      background: var(--green);
+      color: #ffffff;
+      font-family: var(--fb);
+      font-size: 0.74rem;
+      font-weight: 800;
+      border-radius: 50%;
+      margin-bottom: 4px;
+    }
+    .tour-step h4 {
+      font-family: var(--fd);
+      font-size: 1.05rem;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    .tour-step p {
+      font-size: 0.85rem;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+    .tour-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text3);
+      background: transparent;
+      border: 1px solid var(--border2);
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: 12px;
+      transition: all 0.15s;
+    }
+    .tour-toggle:hover { border-color: var(--green); color: var(--green); }
+
     /* FAQ accordion */
     .faq { display: flex; flex-direction: column; gap: 10px; }
     details.faq-q {
@@ -624,6 +733,95 @@
     </div>
   </div>
   {% endif %}
+
+  <!-- ════════════════════════════════════
+       VISUAL WALKTHROUGH — 4-step screenshot tour
+  ════════════════════════════════════ -->
+  <div class="tour-sec">
+    <div style="display:flex;align-items:baseline;flex-wrap:wrap;">
+      <div class="sec-label" style="margin-bottom:10px;">VISUAL WALKTHROUGH</div>
+      <button class="tour-toggle" onclick="toggleTour()" id="tour-toggle-btn" aria-expanded="true">Hide tour ▴</button>
+    </div>
+    <p style="font-size:.88rem;color:var(--text2);margin-bottom:18px;line-height:1.55;max-width:680px;">
+      Quick visual tour of the four steps from zero to live league. Each card mirrors the actual screen you'll see.
+      Drop real screenshots into <code style="font-family:var(--fm);font-size:.78rem;color:var(--green);background:var(--bg);padding:1px 6px;border-radius:4px;">/static/onboarding/step-1.png</code> through <code style="font-family:var(--fm);font-size:.78rem;color:var(--green);background:var(--bg);padding:1px 6px;border-radius:4px;">step-4.png</code> to replace placeholders.
+    </p>
+    <div class="tour-grid" id="tour-grid">
+
+      <!-- Step 1: Create league on dashboard -->
+      <div class="tour-step">
+        <div class="tour-frame">
+          <img src="/static/onboarding/step-1.png" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" style="display:block;">
+          <div class="tour-mock" style="display:none;">
+            <div class="tour-mock-icon">⚡</div>
+            <div class="tour-mock-line med"></div>
+            <div class="tour-mock-line short"></div>
+            <div class="tour-mock-line accent"></div>
+          </div>
+        </div>
+        <div class="tour-step-body">
+          <span class="tour-step-num">1</span>
+          <h4>CREATE YOUR LEAGUE</h4>
+          <p>Sign in with Discord, name your franchise. We generate a unique League ID + API Key on the spot.</p>
+        </div>
+      </div>
+
+      <!-- Step 2: Companion App config -->
+      <div class="tour-step">
+        <div class="tour-frame">
+          <img src="/static/onboarding/step-2.png" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" style="display:block;">
+          <div class="tour-mock" style="display:none;">
+            <div class="tour-mock-icon">📱</div>
+            <div class="tour-mock-line med"></div>
+            <div class="tour-mock-line short"></div>
+            <div class="tour-mock-line accent"></div>
+          </div>
+        </div>
+        <div class="tour-step-body">
+          <span class="tour-step-num">2</span>
+          <h4>CONNECT THE COMPANION APP</h4>
+          <p>Open the EA Madden Companion App, paste your unique URL into Settings → Export, enable Auto-Export.</p>
+        </div>
+      </div>
+
+      <!-- Step 3: Sim & sync -->
+      <div class="tour-step">
+        <div class="tour-frame">
+          <img src="/static/onboarding/step-3.png" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" style="display:block;">
+          <div class="tour-mock" style="display:none;">
+            <div class="tour-mock-icon">🏈</div>
+            <div class="tour-mock-line med"></div>
+            <div class="tour-mock-line short"></div>
+            <div class="tour-mock-line accent"></div>
+          </div>
+        </div>
+        <div class="tour-step-body">
+          <span class="tour-step-num">3</span>
+          <h4>SIM &amp; AUTO-SYNC</h4>
+          <p>Sim a week in Madden — standings, schedule, rosters, and stats stream in to your dashboard within seconds.</p>
+        </div>
+      </div>
+
+      <!-- Step 4: Discord bot live -->
+      <div class="tour-step">
+        <div class="tour-frame">
+          <img src="/static/onboarding/step-4.png" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" style="display:block;">
+          <div class="tour-mock" style="display:none;">
+            <div class="tour-mock-icon">💬</div>
+            <div class="tour-mock-line med"></div>
+            <div class="tour-mock-line short"></div>
+            <div class="tour-mock-line accent"></div>
+          </div>
+        </div>
+        <div class="tour-step-body">
+          <span class="tour-step-num">4</span>
+          <h4>DISCORD BOT POSTS LIVE</h4>
+          <p>Add the bot to your server, run <code style="font-family:var(--fm);font-size:.78rem;color:var(--green);">/setup</code>, and watch standings + AI headlines drop weekly.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
 
   <!-- ════════════════════════════════════
        SECTION 1 — Setup Wizard
@@ -779,34 +977,75 @@
             <ol class="ob-steps-list">
               <li>
                 <span class="snum">1</span>
-                <span>Make sure you are the <strong>owner or admin</strong> of the Discord server you want to add the bot to.</span>
+                <span>Save your <strong>Bot Client ID</strong> on the right (one-time setup). You'll find it on <code style="font-family:var(--fm);font-size:.78rem;color:var(--green);">discord.com/developers/applications</code> → your app → <strong>General Information</strong> → <strong>Application ID</strong>.</span>
               </li>
               <li>
                 <span class="snum">2</span>
-                <span>Click the invite URL below or paste it into your browser:</span>
+                <span>Make sure you are the <strong>owner or admin</strong> of the Discord server you want to add the bot to.</span>
               </li>
-            </ol>
-            <div class="code-block" style="margin:10px 0 10px 38px;">
-              <span>https://discord.com/oauth2/authorize?client_id=YOUR_BOT_ID&amp;scope=bot+applications.commands&amp;permissions=8</span>
-              <button class="btn-copy" onclick="copyBlock(this)">Copy</button>
-            </div>
-            <p style="font-size:.75rem;color:var(--text3);margin:0 0 10px 38px;">Replace <code style="font-family:var(--fm);color:var(--text2);">YOUR_BOT_ID</code> with your actual Discord Application/Bot client ID.</p>
-            <ol class="ob-steps-list" style="margin-top:4px;">
               <li>
                 <span class="snum">3</span>
+                <span>Click the <strong>Add to Discord</strong> button below — it'll open Discord's authorize flow with your bot pre-filled:</span>
+              </li>
+            </ol>
+            {% if bot_invite_url %}
+              <div style="margin:14px 0 12px 38px;display:flex;gap:8px;flex-wrap:wrap;">
+                <a href="{{ bot_invite_url }}" target="_blank" rel="noopener" class="btn-create" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
+                  ⚡ Add to Discord →
+                </a>
+                <button class="btn-copy" onclick="copyT('{{ bot_invite_url }}', this)">Copy invite URL</button>
+              </div>
+              <div class="code-block" style="margin:0 0 10px 38px;">
+                <span style="font-size:.72rem;">{{ bot_invite_url }}</span>
+                <button class="btn-copy" onclick="copyBlock(this)">Copy</button>
+              </div>
+            {% else %}
+              <div style="margin:14px 0 10px 38px;padding:14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;">
+                <p style="font-size:.85rem;color:var(--amber);font-weight:700;margin-bottom:6px;">⚠ Bot Client ID required</p>
+                <p style="font-size:.82rem;color:var(--text2);">Save your Bot Client ID in the panel on the right to generate your one-click invite URL.</p>
+              </div>
+            {% endif %}
+            <ol class="ob-steps-list" style="margin-top:4px;">
+              <li>
+                <span class="snum">4</span>
                 <span>Select your server from the dropdown and click <strong>Authorize</strong>.</span>
               </li>
               <li>
-                <span class="snum">4</span>
+                <span class="snum">5</span>
                 <span>Complete the CAPTCHA if prompted.</span>
               </li>
               <li>
-                <span class="snum">5</span>
+                <span class="snum">6</span>
                 <span>The bot will appear offline until you complete the <strong>Configure Bot</strong> step.</span>
               </li>
             </ol>
           </div>
           <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="ob-card" style="border-color: var(--green);">
+              <div class="ob-card-title">BOT CLIENT ID {% if bot_client_id %}<span style="color:var(--green);">✓ SAVED</span>{% else %}<span style="color:var(--amber);">⚠ REQUIRED</span>{% endif %}</div>
+              <p style="font-size:.82rem;color:var(--text2);line-height:1.55;margin-bottom:12px;">
+                Find this on <code style="font-family:var(--fm);font-size:.78rem;color:var(--green);background:var(--bg);padding:1px 6px;border-radius:4px;">discord.com/developers/applications</code> → your app → <strong>General Information</strong> → <strong>Application ID</strong>. Long numeric snowflake ID.
+              </p>
+              <form method="post" action="/set_bot_client_id" style="display:flex;gap:8px;flex-wrap:wrap;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input
+                  type="text"
+                  name="bot_client_id"
+                  placeholder="e.g. 1234567890123456789"
+                  value="{{ user.bot_client_id or '' }}"
+                  pattern="[0-9]*"
+                  inputmode="numeric"
+                  style="flex:1;min-width:160px;font-family:var(--fm);font-size:.82rem;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);outline:none;"
+                  onfocus="this.style.borderColor='var(--green)'"
+                  onblur="this.style.borderColor='var(--border)'"
+                >
+                <button type="submit" class="btn-save">Save</button>
+              </form>
+              {% if bot_client_id and not bot_client_id_user_set %}
+              <p style="font-size:.74rem;color:var(--text3);margin-top:8px;">Currently using server default. Save your own ID above to override.</p>
+              {% endif %}
+            </div>
+
             <div class="ob-card">
               <div class="ob-card-title">REQUIRED PERMISSIONS</div>
               <ul class="ck-list">
@@ -1179,6 +1418,16 @@
     const orig = btn.textContent;
     btn.textContent = '✓ Copied';
     setTimeout(() => btn.textContent = orig, 1500);
+  }
+
+  function toggleTour() {
+    const grid = document.getElementById('tour-grid');
+    const btn = document.getElementById('tour-toggle-btn');
+    if (!grid || !btn) return;
+    const isHidden = grid.style.display === 'none';
+    grid.style.display = isHidden ? '' : 'none';
+    btn.textContent = isHidden ? 'Hide tour ▴' : 'Show tour ▾';
+    btn.setAttribute('aria-expanded', String(isHidden));
   }
 
   // Init

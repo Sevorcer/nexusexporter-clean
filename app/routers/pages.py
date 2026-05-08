@@ -8,11 +8,23 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.auth import build_discord_auth_url, get_csrf_token, get_current_user
+from app.config import DISCORD_BOT_CLIENT_ID
 from app.db import get_session
 from app.deps import get_league_or_404
 from app.models import League, Player, PlayerStats, Schedule, Standing, Team
 from app.stats import build_stat_leaders
 from app.templates import templates
+
+
+def _bot_invite_url(client_id: Optional[str]) -> Optional[str]:
+    if not client_id:
+        return None
+    return (
+        "https://discord.com/oauth2/authorize?"
+        f"client_id={client_id}"
+        "&scope=bot+applications.commands"
+        "&permissions=8"
+    )
 
 router = APIRouter()
 
@@ -66,6 +78,7 @@ def home(request: Request, session: Session = Depends(get_session)):
             "has_standings": has_standings,
         }
 
+    effective_bot_client_id = user.bot_client_id or DISCORD_BOT_CLIENT_ID
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -76,6 +89,9 @@ def home(request: Request, session: Session = Depends(get_session)):
             "error": error,
             "flash_msg": flash_msg,
             "csrf_token": get_csrf_token(request),
+            "bot_client_id": effective_bot_client_id,
+            "bot_client_id_user_set": bool(user.bot_client_id),
+            "bot_invite_url": _bot_invite_url(effective_bot_client_id),
         },
     )
 
